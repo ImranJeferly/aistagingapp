@@ -27,8 +27,15 @@ export default function Navigation() {
         ? 'bg-white/70 backdrop-blur-md border-b border-gray-200' 
         : 'bg-transparent border-b border-transparent'
     }`}>      {/* Logo */}
-      <div className="text-gray-900 font-bold text-xl tracking-wide mr-8">
-        AI Staging App
+      <div className="flex items-center gap-3 mr-8">
+        <img 
+          src="/logo.png" 
+          alt="AI Staging App Logo" 
+          className="w-12 h-12 object-contain"
+        />
+        <span className="text-gray-900 font-bold text-xl tracking-wide">
+          AI Staging App
+        </span>
       </div>
         {/* Navigation Links */}
       <nav className="hidden md:flex items-center space-x-12">

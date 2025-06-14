@@ -23,16 +23,25 @@ body {
   overflow-x: hidden;
 }
 
-/* Slow floating animation for 3D objects */
-.floating-element {
-  animation: float 6s ease-in-out infinite;
+/* Scrollbar utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animation keyframes */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
   }
-  50% {
-    transform: translateY(-20px);
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
+
