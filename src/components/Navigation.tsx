@@ -1,11 +1,17 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import NavLink from './NavLink';
 import Button from './Button';
+import AuthButton from './AuthButton';
+import { useAuth } from '../contexts/AuthContext';
+import { useUploadLimit } from '../hooks/useUploadLimit';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const { isAuthenticated, logout, user, userData } = useAuth();
+  const { remainingUploads, totalUploads, isLimitReached, isLoading } = useUploadLimit();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,14 +26,13 @@ export default function Navigation() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-12 py-8 transition-all duration-300 ease-in-out ${
+    <header className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between transition-all duration-300 ease-in-out ${
       isScrolled 
-        ? 'bg-white/70 backdrop-blur-md border-b border-gray-200' 
-        : 'bg-transparent border-b border-transparent'
-    }`}>      {/* Logo */}
-      <div className="flex items-center gap-3 mr-8">
+        ? 'bg-white/70 backdrop-blur-md border-b border-gray-200 px-6 py-4' 
+        : 'bg-transparent border-b border-transparent px-12 py-8'
+    }`}>{/* Logo */}
+      <Link href="/" className="flex items-center gap-3 mr-8 hover:opacity-80 transition-opacity">
         <img 
           src="/logo.png" 
           alt="AI Staging App Logo" 
@@ -36,24 +41,70 @@ export default function Navigation() {
         <span className="text-gray-900 font-bold text-xl tracking-wide">
           AI Staging App
         </span>
-      </div>
-        {/* Navigation Links */}
+      </Link>        {/* Navigation Links */}
       <nav className="hidden md:flex items-center space-x-12">
-        <NavLink href="#features">Features</NavLink>
-        <NavLink href="#gallery">Gallery</NavLink>
+        <NavLink href="#features">Gallery</NavLink>
+        <NavLink href="#gallery">Upload</NavLink>
         <NavLink href="#pricing">Pricing</NavLink>
-        <NavLink href="#contact">Contact</NavLink>
+        <NavLink href="#faq">FAQ</NavLink>
       </nav>
       {/* Mobile Menu Button */}
       <button className="md:hidden text-gray-900 p-3 ml-4">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>      {/* Donate Button */}
-      <div className="hidden md:block ml-8">
-        <Button size="sm" hoverColor="bg-green-400">
-          Get Started
-        </Button>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />        </svg>
+      </button>      {/* Right side buttons */}
+      <div className="hidden md:flex items-center gap-4 ml-8">        {isAuthenticated ? (
+          <>
+            <Link 
+              href="/upload"
+              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              Upload
+            </Link>
+            
+            {/* Upload Limit Indicator */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gray-100 border">
+              <div className="flex items-center gap-1">
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 4v10a2 2 0 002 2h6a2 2 0 002-2V8M9 8h6" />
+                </svg>
+                <span className={`text-sm font-medium ${isLimitReached ? 'text-red-600' : 'text-gray-700'}`}>
+                  {isLoading ? '...' : `${remainingUploads}/${totalUploads}`}
+                </span>
+              </div>
+              {isLimitReached && (
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              )}
+            </div>
+            
+            <span className="text-gray-600 text-sm">
+              Hello, {userData?.firstName || user?.displayName?.split(' ')[0] || 'User'}
+            </span>
+            <button
+              onClick={logout}
+              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-all duration-200"
+              title="Logout"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>          </>
+        ) : (
+          <>
+            <Link 
+              href="/login"
+              className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-full hover:bg-gray-100 transition-all duration-200"
+            >
+              Login
+            </Link>
+            <Link 
+              href="/register"
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              Register
+            </Link>
+          </>
+        )}
       </div>
     </header>
   );

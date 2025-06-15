@@ -1,5 +1,6 @@
 import Navigation from '../components/Navigation';
 import Button from '../components/Button';
+import AuthButton from '../components/AuthButton';
 import FloatingElement from '../components/FloatingElement';
 import Badge from '../components/Badge';
 import WigglyLine from '../components/WigglyLine';
@@ -118,9 +119,9 @@ export default function Home() {
             </p>
 
             {/* CTA Button */}
-            <Button size="lg" hoverColor="bg-purple-400">
+            <AuthButton size="lg" hoverColor="bg-purple-400" redirectTo="/upload">
               Get Started
-            </Button>
+            </AuthButton>
           </main>
 
   
@@ -128,16 +129,24 @@ export default function Home() {
       </section>
 
       {/* Image Viewer Section */}
-      <ImageViewer />
+      <section id="features">
+        <ImageViewer />
+      </section>
 
       {/* Upload Section */}
-      <UploadSection />
+      <section id="gallery">
+        <UploadSection />
+      </section>
 
       {/* Pricing Section */}
-      <PricingSection />
+      <section id="pricing">
+        <PricingSection />
+      </section>
 
       {/* FAQ Section */}
-      <FAQSection />
+      <section id="faq">
+        <FAQSection />
+      </section>
 
       {/* Footer */}
       <Footer />

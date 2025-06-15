@@ -3,7 +3,7 @@
 import React from 'react';
 import FloatingElement from './FloatingElement';
 import WigglyLine from './WigglyLine';
-import Button from './Button';
+import AuthButton from './AuthButton';
 
 export default function PricingSection() {
   return (
@@ -86,12 +86,10 @@ export default function PricingSection() {
                 </svg>
                 <span className="text-gray-700">No watermarks</span>
               </div>
-            </div>
-
-            {/* CTA Button */}
-            <Button size="lg" hoverColor="bg-blue-500">
+            </div>            {/* CTA Button */}
+            <AuthButton size="lg" hoverColor="bg-blue-500" redirectTo="/upload">
               Start Staging for Free
-            </Button>
+            </AuthButton>
 
             {/* Small Print */}
             <p className="text-xs text-gray-500 mt-4">

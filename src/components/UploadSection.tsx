@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import FloatingElement from './FloatingElement';
 import WigglyLine from './WigglyLine';
+import AuthButton from './AuthButton';
 
 export default function UploadSection() {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -127,16 +128,15 @@ export default function UploadSection() {
                     <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                  </div>
-
-                  {/* Upload Button */}
-                  <div>
-                    <button
-                      onClick={handleUploadClick}
+                  </div>                  {/* Upload Button */}
+                  <div>                    <AuthButton
+                      size="lg"
+                      hoverColor="bg-blue-700"
+                      redirectTo="/upload"
                       className="inline-flex items-center px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-full hover:bg-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
                     >
                       Upload Image
-                    </button>
+                    </AuthButton>
                   </div>
 
                   {/* Drop Text */}
