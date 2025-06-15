@@ -37,22 +37,22 @@ const roomTypes: RoomType[] = [  {
   {
     id: 'bathroom',
     name: 'Bathroom',
-    beforeImage: '/bathroom.jpg',
-    afterImage: '/bathroom_ai.jpg',
+    beforeImage: '/bathroom.png',
+    afterImage: '/bathroom_ai.png',
     afterColor: 'bg-gradient-to-br from-teal-400 to-teal-600'
   },
   {
     id: 'dining-room',
     name: 'Dining Room',
-    beforeImage: '/diningroom.jpg',
-    afterImage: '/diningroom_ai.jpg',
+    beforeImage: '/diningroom.png',
+    afterImage: '/diningroom_ai.png',
     afterColor: 'bg-gradient-to-br from-orange-400 to-orange-600'
   },
   {
     id: 'office',
     name: 'Home Office',
-    beforeImage: '/office.avif',
-    afterImage: '/office_ai.avif',
+    beforeImage: '/office.png',
+    afterImage: '/office_ai.png',
     afterColor: 'bg-gradient-to-br from-indigo-400 to-indigo-600'
   }
 ];
