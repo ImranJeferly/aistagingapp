@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import AuthGuard from '../../components/AuthGuard';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
+import FloatingElement from '../../components/FloatingElement';
 import { useState } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addUploadRecord, canUserUpload } from '../../services/uploadService';
@@ -196,9 +197,47 @@ export default function UploadPage() {
   };
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-gray-100">
+    <AuthGuard>      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-gray-100">
         <Navigation />
+        
+        {/* Floating Furniture Elements - Show throughout the entire upload journey */}
+        <FloatingElement 
+          position={{ top: '8rem', left: '4rem' }}
+          size="sm"
+          imageSrc="/lamp.png"
+          imageAlt="3D Lamp"
+          animationDelay="0s"
+          rotation="15deg"
+        />
+        
+        <FloatingElement 
+          position={{ top: '6rem', right: '8rem' }}
+          size="md"
+          imageSrc="/chair.png"
+          imageAlt="3D Chair"
+          animationDelay="1.2s"
+          rotation="-10deg"
+        />
+
+
+        <FloatingElement 
+          position={{ bottom: '8rem', right: '4rem' }}
+          size="md"
+          imageSrc="/cactus.png"
+          imageAlt="3D Plant"
+          animationDelay="3.5s"
+          rotation="-15deg"
+        />
+        
+        <FloatingElement 
+          position={{ top: '60%', left: '1rem' }}
+          size="xxl"
+          imageSrc="/bed.png"
+          imageAlt="3D Bed"
+          animationDelay="4.2s"
+          blur={true}
+          rotation="10deg"
+        />
         
         <main className="pt-20 pb-16">
           <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.20)-theme(spacing.16))] p-4">
@@ -289,27 +328,7 @@ export default function UploadPage() {
                   </div>
                 </div>              ) : stagedImageUrl ? (
                 /* Upload Complete - Show Results */
-                <div className="relative space-y-8 overflow-hidden">
-                  {/* Floating Background Elements */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    {/* Large blurred circles */}
-                    <div className="absolute -top-20 -left-20 w-80 h-80 bg-gradient-to-r from-purple-300/30 to-pink-300/30 rounded-full blur-3xl animate-pulse"></div>
-                    <div className="absolute -top-40 -right-32 w-96 h-96 bg-gradient-to-r from-blue-300/25 to-cyan-300/25 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-                    <div className="absolute -bottom-32 -left-40 w-72 h-72 bg-gradient-to-r from-green-300/30 to-emerald-300/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-                    <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-gradient-to-r from-orange-300/25 to-yellow-300/25 rounded-full blur-3xl animate-pulse" style={{animationDelay: '0.5s'}}></div>
-                    
-                    {/* Medium floating shapes */}
-                    <div className="absolute top-32 left-16 w-32 h-32 bg-gradient-to-r from-indigo-300/40 to-purple-300/40 rounded-full blur-2xl animate-bounce" style={{animationDuration: '3s', animationDelay: '1.5s'}}></div>
-                    <div className="absolute top-20 right-24 w-24 h-24 bg-gradient-to-r from-rose-300/35 to-pink-300/35 rounded-full blur-xl animate-bounce" style={{animationDuration: '4s', animationDelay: '0.8s'}}></div>
-                    <div className="absolute bottom-40 left-32 w-28 h-28 bg-gradient-to-r from-teal-300/30 to-cyan-300/30 rounded-full blur-2xl animate-bounce" style={{animationDuration: '3.5s', animationDelay: '2.2s'}}></div>
-                    
-                    {/* Small sparkle elements */}
-                    <div className="absolute top-1/4 left-1/3 w-8 h-8 bg-white/60 rounded-full blur-sm animate-ping" style={{animationDelay: '1s'}}></div>
-                    <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-yellow-200/70 rounded-full blur-sm animate-ping" style={{animationDelay: '2.5s'}}></div>
-                    <div className="absolute bottom-1/3 left-1/4 w-10 h-10 bg-blue-200/50 rounded-full blur-sm animate-ping" style={{animationDelay: '1.8s'}}></div>
-                    <div className="absolute bottom-1/4 right-1/3 w-7 h-7 bg-purple-200/60 rounded-full blur-sm animate-ping" style={{animationDelay: '0.3s'}}></div>
-                  </div>
-                  
+                <div className="space-y-8">
                   <div className="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">
                     <div className="text-center mb-8">
                       <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
