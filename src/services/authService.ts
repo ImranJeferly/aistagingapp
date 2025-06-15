@@ -24,6 +24,7 @@ export interface UserData {
   lastName: string;
   displayName?: string;
   photoURL?: string;
+  plan: 'free' | 'basic' | 'pro'; // Add plan field
   createdAt: any;
   updatedAt: any;
 }
@@ -74,12 +75,12 @@ export const createUserDocument = async (user: User, additionalData?: any): Prom
       const { displayName, email, photoURL } = user;
       const createdAt = serverTimestamp();
       const updatedAt = serverTimestamp();
-      
-      const userData = {
+        const userData = {
         uid: user.uid,
         email,
         displayName: displayName || '',
         photoURL: photoURL || '',
+        plan: 'free', // Default to free tier for new users
         createdAt,
         updatedAt,
         ...additionalData

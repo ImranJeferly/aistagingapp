@@ -1,44 +1,84 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getRemainingUploads, DAILY_UPLOAD_LIMIT } from '../services/uploadService';
+import { getRemainingUploads, getUserDailyLimit, getUserMonthlyLimit, getUserTier } from '../services/uploadService';
 
 export const useUploadLimit = () => {
   const { user, isAuthenticated } = useAuth();
-  const [remainingUploads, setRemainingUploads] = useState<number>(DAILY_UPLOAD_LIMIT);
+  const [remainingUploads, setRemainingUploads] = useState<{ daily: number; monthly: number }>({ daily: 1, monthly: 30 });
+  const [totalLimits, setTotalLimits] = useState<{ daily: number; monthly: number }>({ daily: 1, monthly: 30 });
+  const [userTier, setUserTier] = useState<'free' | 'basic' | 'pro'>('free');
   const [isLoading, setIsLoading] = useState(false);
-  const fetchRemainingUploads = async () => {
+  
+  const fetchUploadLimits = async () => {
     if (!user || !isAuthenticated) {
-      setRemainingUploads(DAILY_UPLOAD_LIMIT);
+      setRemainingUploads({ daily: 1, monthly: 30 });
+      setTotalLimits({ daily: 1, monthly: 30 });
+      setUserTier('free');
       return;
     }
 
     setIsLoading(true);
     try {
-      const remaining = await getRemainingUploads(user.uid);
+      const [remaining, dailyLimit, monthlyLimit, tier] = await Promise.all([
+        getRemainingUploads(user.uid),
+        getUserDailyLimit(user.uid),
+        getUserMonthlyLimit(user.uid),
+        getUserTier(user.uid)
+      ]);
+      
       setRemainingUploads(remaining);
+      setTotalLimits({ daily: dailyLimit, monthly: monthlyLimit });
+      setUserTier(tier);
     } catch (error) {
-      console.error('Error fetching remaining uploads:', error);
-      // Default to full limit for new users or when there's an error
-      setRemainingUploads(DAILY_UPLOAD_LIMIT);
+      console.error('Error fetching upload limits:', error);
+      // Default to free tier for new users or when there's an error
+      setRemainingUploads({ daily: 1, monthly: 30 });
+      setTotalLimits({ daily: 1, monthly: 30 });
+      setUserTier('free');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRemainingUploads();
+    fetchUploadLimits();
   }, [user, isAuthenticated]);
 
   const refreshLimit = () => {
-    fetchRemainingUploads();
+    fetchUploadLimits();
   };
 
+  // For free tier, show daily limits. For paid tiers, show monthly limits
+  const isLimitReached = userTier === 'free' 
+    ? remainingUploads.daily <= 0 
+    : remainingUploads.monthly <= 0;
+
+  const displayRemaining = userTier === 'free' 
+    ? remainingUploads.daily 
+    : remainingUploads.monthly;
+
+  const displayUsed = userTier === 'free'
+    ? totalLimits.daily - remainingUploads.daily
+    : totalLimits.monthly - remainingUploads.monthly;
+
+  const displayTotal = userTier === 'free'
+    ? totalLimits.daily
+    : totalLimits.monthly;
+
   return {
-    remainingUploads,
-    usedUploads: DAILY_UPLOAD_LIMIT - remainingUploads,
-    totalUploads: DAILY_UPLOAD_LIMIT,
-    isLimitReached: remainingUploads <= 0,
+    remainingUploads: displayRemaining,
+    usedUploads: displayUsed,
+    totalUploads: displayTotal,
+    userTier,
+    isLimitReached,
     isLoading,
-    refreshLimit
+    refreshLimit,
+    // Additional data for more detailed display if needed
+    fullLimits: {
+      daily: remainingUploads.daily,
+      monthly: remainingUploads.monthly,
+      totalDaily: totalLimits.daily,
+      totalMonthly: totalLimits.monthly
+    }
   };
 };

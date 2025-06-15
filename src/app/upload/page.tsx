@@ -5,14 +5,14 @@ import AuthGuard from '../../components/AuthGuard';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import FloatingElement from '../../components/FloatingElement';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
-import { addUploadRecord, canUserUpload } from '../../services/uploadService';
+import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
 import { Timestamp } from 'firebase/firestore';
 
 export default function UploadPage() {
   const { user } = useAuth();
-  const { isLimitReached, refreshLimit } = useUploadLimit();
+  const { isLimitReached, refreshLimit, remainingUploads, usedUploads, totalUploads, userTier } = useUploadLimit();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -23,6 +23,8 @@ export default function UploadPage() {
   const [selectedStyle, setSelectedStyle] = useState<string>('');
   const [selectedRoomType, setSelectedRoomType] = useState<string>('');
   const [additionalPrompt, setAdditionalPrompt] = useState<string>('');
+  const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // Style options
   const styleOptions = [
@@ -45,9 +47,27 @@ export default function UploadPage() {
     { value: 'nursery', label: 'Nursery' },
     { value: 'basement', label: 'Basement' },
   ];
-
   // Check if form is valid (mandatory fields selected)
   const isFormValid = selectedStyle && selectedRoomType;
+
+  // Load upload history
+  useEffect(() => {
+    const loadUploadHistory = async () => {
+      if (!user) return;
+      
+      setIsLoadingHistory(true);
+      try {
+        const history = await getAllUserUploads(user.uid);
+        setUploadHistory(history);
+      } catch (error) {
+        console.error('Failed to load upload history:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadUploadHistory();
+  }, [user]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -87,28 +107,21 @@ export default function UploadPage() {
     }
   };
   const handleUpload = async () => {
-    if (!selectedFile || !user || !isFormValid) return;
-    
-    // Check if user can upload
+    if (!selectedFile || !user || !isFormValid) return;    // Check if user can upload
     const canUpload = await canUserUpload(user.uid);
     if (!canUpload) {
-      setError('You have reached your daily upload limit of 3 images. Please try again tomorrow.');
+      const tier = userTier || 'free';
+      if (tier === 'free') {
+        setError('You have reached your daily limit of 1 staged image. Your limit resets 24 hours after your upload.');
+      } else {
+        setError('You have reached your monthly limit. Your limit resets on the 1st of next month.');
+      }
       return;
     }
     
-    setError(null);
-    setIsUploading(true);
+    setError(null);    setIsUploading(true);
     
     try {
-      // Add upload record to track usage
-      await addUploadRecord({
-        userId: user.uid,
-        uploadedAt: Timestamp.now(),
-        imageSize: selectedFile.size,
-        imageName: selectedFile.name,
-        status: 'processing'
-      });
-      
       // Convert image to base64 for OpenAI API
       const base64Image = await new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -128,7 +141,9 @@ export default function UploadPage() {
           roomType: selectedRoomType,
           additionalPrompt: additionalPrompt.trim() || undefined,
         }),
-      });      if (!response.ok) {
+      });
+
+      if (!response.ok) {
         let errorMessage = 'Failed to stage image';
         try {
           const responseText = await response.text();
@@ -145,7 +160,9 @@ export default function UploadPage() {
           errorMessage = `Server error (${response.status}): ${response.statusText}`;
         }
         throw new Error(errorMessage);
-      }      let result;
+      }
+
+      let result;
       try {
         const responseText = await response.text();
         console.log('Raw response text:', responseText);
@@ -154,14 +171,27 @@ export default function UploadPage() {
       } catch (parseError) {
         console.error('Failed to parse JSON response:', parseError);
         throw new Error('Server returned invalid response format');
-      }
-      
-      // Set the result with staged image only
+      }      // Set the result with staged image only
       if (result.stagedImage) {
         console.log('Setting staged image URL:', result.stagedImage.substring(0, 50) + '...');
         setStagedImageUrl(result.stagedImage); // API already returns data URL format
+        
+        // Only create the upload record since the image was successfully generated
+        await addCompletedUploadRecord({
+          userId: user.uid,
+          uploadedAt: Timestamp.now(),
+          imageSize: selectedFile.size,
+          imageName: selectedFile.name,
+          style: selectedStyle,
+          roomType: selectedRoomType
+        });
+        
+        // Refresh the upload history to show the new record
+        const updatedHistory = await getAllUserUploads(user.uid);
+        setUploadHistory(updatedHistory);
       } else {
         console.error('No staged image in result:', result);
+        throw new Error('No staged image was generated');
       }
       
       setIsUploading(false);
@@ -181,9 +211,7 @@ export default function UploadPage() {
     setSelectedStyle('');
     setSelectedRoomType('');
     setAdditionalPrompt('');
-  };
-
-  // Download function for the staged image
+  };  // Download function for the staged image
   const downloadStagedImage = () => {
     if (!stagedImageUrl) return;
     
@@ -194,6 +222,17 @@ export default function UploadPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Format date for display
+  const formatDate = (timestamp: Timestamp) => {
+    return timestamp.toDate().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -241,13 +280,53 @@ export default function UploadPage() {
         
         <main className="pt-20 pb-16">
           <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.20)-theme(spacing.16))] p-4">
-            <div className="w-full max-w-4xl">
-              {/* Error Display */}
+            <div className="w-full max-w-4xl">              {/* Error Display */}
               {error && (
                 <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
                   {error}
                 </div>
-              )}              {/* Upload Card or Image Display */}
+              )}
+
+              {/* Daily Limit Status */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>                    <span className="text-sm font-medium text-gray-700 capitalize">
+                      {userTier} Plan: {usedUploads} / {totalUploads} image{totalUploads > 1 ? 's' : ''} {userTier === 'free' ? 'per day' : 'this month'}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    {remainingUploads > 0 ? (
+                      <span className="text-sm text-green-600 font-medium">
+                        {remainingUploads} remaining
+                      </span>
+                    ) : (
+                      <span className="text-sm text-red-600 font-medium">
+                        Limit reached
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      remainingUploads > 0 ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${(usedUploads / totalUploads) * 100}%` }}
+                  ></div>
+                </div>                {isLimitReached && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    {userTier === 'free' 
+                      ? 'Free tier allows 1 staged image per day. Your limit resets 24 hours after your upload.'
+                      : `Your monthly limit resets on the 1st of next month. Consider upgrading for more images.`
+                    }
+                  </p>
+                )}
+              </div>{/* Upload Card or Image Display */}
               {!selectedFile ? (
                 /* Upload Card */
                 <div 
@@ -508,14 +587,63 @@ export default function UploadPage() {
                             Please select both style and room type to continue
                           </div>
                         )}
-                      </div>
-                    </div>
+                      </div>                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
-        </main>
+        </main>        {/* Upload History Section */}
+        {uploadHistory.length > 0 && (
+          <section className="py-16 px-4 bg-white/50 backdrop-blur-sm">
+            <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  Your Staging History
+                </h2>
+                <p className="text-lg text-gray-600">
+                  Your previously staged room images
+                </p>
+              </div>
+
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  <span className="ml-3 text-gray-600">Loading your history...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {uploadHistory.map((record) => (
+                    <div 
+                      key={record.id} 
+                      className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300"
+                    >
+                      {/* Icon */}
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="text-center">
+                        <h3 className="font-semibold text-gray-900 mb-2 capitalize">
+                          {record.roomType?.replace('-', ' ')} • {record.style}
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          {formatDate(record.uploadedAt)}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Original: {record.imageName}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <Footer />
       </div>

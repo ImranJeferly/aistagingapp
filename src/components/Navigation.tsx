@@ -7,11 +7,28 @@ import Button from './Button';
 import AuthButton from './AuthButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useUploadLimit } from '../hooks/useUploadLimit';
+import { getCurrentPlan } from '../services/pricingService';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { isAuthenticated, logout, user, userData } = useAuth();
-  const { remainingUploads, totalUploads, isLimitReached, isLoading } = useUploadLimit();
+  const { remainingUploads, totalUploads, isLimitReached, isLoading, userTier } = useUploadLimit();
+  
+  // Get current plan details
+  const currentPlan = getCurrentPlan(userTier);
+  
+  const handleUpgradeClick = () => {
+    // Scroll to pricing section on homepage
+    if (window.location.pathname === '/') {
+      const pricingSection = document.getElementById('pricing');
+      if (pricingSection) {
+        pricingSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // Navigate to homepage pricing section
+      window.location.href = '/#pricing';
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,10 +58,10 @@ export default function Navigation() {
         <span className="text-gray-900 font-bold text-xl tracking-wide">
           AI Staging App
         </span>
-      </Link>        {/* Navigation Links */}
+      </Link>      {/* Navigation Links */}
       <nav className="hidden md:flex items-center space-x-12">
         <NavLink href="#features">Gallery</NavLink>
-        <NavLink href="#gallery">Upload</NavLink>
+        <NavLink href="/upload">Upload</NavLink>
         <NavLink href="#pricing">Pricing</NavLink>
         <NavLink href="#faq">FAQ</NavLink>
       </nav>
@@ -61,6 +78,29 @@ export default function Navigation() {
             >
               Upload
             </Link>
+            
+            {/* Plan Display */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-50 border border-blue-200">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  userTier === 'free' ? 'bg-gray-400' : 
+                  userTier === 'basic' ? 'bg-yellow-400' : 'bg-purple-400'
+                }`}></div>
+                <span className="text-sm font-medium text-blue-700">
+                  {isLoading ? '...' : currentPlan.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Upgrade Button - Only show for free tier */}
+            {userTier === 'free' && (
+              <button 
+                onClick={handleUpgradeClick}
+                className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-semibold rounded-full hover:from-yellow-500 hover:to-orange-500 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg text-sm"
+              >
+                Upgrade
+              </button>
+            )}
             
             {/* Upload Limit Indicator */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gray-100 border">
@@ -88,7 +128,7 @@ export default function Navigation() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-            </button>          </>
+            </button></>
         ) : (
           <>
             <Link 

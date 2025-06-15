@@ -18,13 +18,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create a detailed prompt for home staging with image generation
-    const prompt = `Take the uploaded image of an empty room and add realistic furniture appropriate for the room's function (${roomType}). Do not change or alter the existing architecture, floor, ceiling, windows, walls, or lighting. Only add furniture in a natural, well-composed way. 
-                    Make sure the furniture matches the ${style} style and fits naturally into the scene. Keep shadows, perspective, and lighting consistent with the original image.
-                    Room Type: ${roomType}
-                    Style: ${style}
-                    ${additionalPrompt ? `Additional Requirements: ${additionalPrompt}` : ''}
-                    Focus on creating a cohesive, professionally staged space that would appeal to potential buyers or renters while maintaining the original room's architectural integrity.
-                    Generate a new image showing this room with appropriate furniture added.`;
+    const prompt = `Take the uploaded image of an empty room and add realistic, photo-quality furniture appropriate for its function: ${roomType}. 
+
+                    ⚠️ Do not change or modify the existing architecture, flooring, ceiling, windows, wall color, or lighting in any way. Preserve all original structural and visual elements exactly as they are.
+
+                    Only add carefully selected, well-composed furniture and decor elements that naturally fit the space. Ensure all additions reflect the chosen interior style: ${style}. Use appropriate textures, materials, and color tones that harmonize with the room’s existing lighting and color palette.
+
+                    Maintain consistent perspective, shadows, lighting direction, and scale, so that the furniture appears fully integrated into the scene. Avoid distortions, clutter, or unrealistic placements.
+
+                    Room Type: ${roomType}  
+                    Interior Style: ${style}  
+                    ${additionalPrompt ? `Additional Guidelines: ${additionalPrompt}` : ''}
+
+                    🎯 Objective: Produce a visually cohesive, professionally staged image that would appeal to real estate buyers or renters. The result should look like a real photo of the same room after expert virtual staging — with all architecture and lighting untouched, and only high-quality furnishings added.`;
 
     // Use the new Responses API with GPT Image 1 for both analysis and generation
     const response = await openai.responses.create({
