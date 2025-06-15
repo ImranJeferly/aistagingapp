@@ -9,44 +9,50 @@ interface RoomType {
   id: string;
   name: string;
   beforeImage: string;
-  afterColor: string;
+  afterImage: string;
+  afterColor: string; // Keeping as fallback for styling
 }
 
-const roomTypes: RoomType[] = [
-  {
+const roomTypes: RoomType[] = [  {
     id: 'living-room',
     name: 'Living Room',
     beforeImage: '/living room.jpeg',
+    afterImage: '/livingroom_ai.png',
     afterColor: 'bg-gradient-to-br from-blue-400 to-blue-600'
   },
   {
     id: 'kitchen',
     name: 'Kitchen',
     beforeImage: '/kitchen.jpg',
+    afterImage: '/kitchen.png',
     afterColor: 'bg-gradient-to-br from-green-400 to-green-600'
   },
   {
     id: 'bedroom',
     name: 'Bedroom',
     beforeImage: '/bedroom.jpg',
+    afterImage: '/bedroom_ai.png',
     afterColor: 'bg-gradient-to-br from-purple-400 to-purple-600'
   },
   {
     id: 'bathroom',
     name: 'Bathroom',
     beforeImage: '/bathroom.jpg',
+    afterImage: '/bathroom_ai.jpg',
     afterColor: 'bg-gradient-to-br from-teal-400 to-teal-600'
   },
   {
     id: 'dining-room',
     name: 'Dining Room',
     beforeImage: '/diningroom.jpg',
+    afterImage: '/diningroom_ai.jpg',
     afterColor: 'bg-gradient-to-br from-orange-400 to-orange-600'
   },
   {
     id: 'office',
     name: 'Home Office',
     beforeImage: '/office.avif',
+    afterImage: '/office_ai.avif',
     afterColor: 'bg-gradient-to-br from-indigo-400 to-indigo-600'
   }
 ];
@@ -268,15 +274,15 @@ export default function ImageViewer() {
               onMouseUp={handleMouseUp}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-            >
-              {/* After Image (Left side) */}
+            >              {/* After Image (Left side) */}
               <div className="absolute inset-0">
-                <div className={`w-full h-full ${selectedRoom.afterColor} flex items-center justify-center`}>
-                  <div className="text-center">
-                    <div className="text-white text-2xl md:text-3xl font-light mb-2">AI Staged {selectedRoom.name}</div>
-                    <div className="text-white/80 text-lg">Transformed Space</div>
-                  </div>
-                </div>
+                <Image
+                  src={selectedRoom.afterImage}
+                  alt={`AI Staged ${selectedRoom.name}`}
+                  fill
+                  className="object-cover"
+                  priority
+                />
               </div>
 
               {/* Before Image (Right side) - Clipped by slider position */}
