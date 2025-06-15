@@ -11,6 +11,7 @@ export interface PricingPlan {
   yearlyPrice: number; // in USD (with discount)
   features: string[];
   recommended?: boolean;
+  stripePriceId?: string; // Stripe price ID for subscription
 }
 
 // Cost structure
@@ -41,6 +42,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     monthlyPrice: 15, // $0.75 per image
     yearlyPrice: 150, // 2 months free
     recommended: true,
+    stripePriceId: 'price_basic_monthly', // This will need to be updated with actual Stripe price ID
     features: [
       '20 staged images per month',
       'All room types supported',
@@ -56,6 +58,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     monthlyLimit: 50, // 50 images per month
     monthlyPrice: 30, // $0.60 per image
     yearlyPrice: 300, // 2 months free
+    stripePriceId: 'price_pro_monthly', // This will need to be updated with actual Stripe price ID
     features: [
       '50 staged images per month',
       'All room types supported',

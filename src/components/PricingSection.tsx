@@ -8,7 +8,6 @@ import { PRICING_PLANS } from '../services/pricingService';
 
 export default function PricingSection() {
   const { isAuthenticated } = useAuth();
-
   const handleButtonClick = (planId: string) => {
     if (!isAuthenticated) {
       // Redirect to login page if not authenticated
@@ -20,10 +19,8 @@ export default function PricingSection() {
       // Free plan - redirect to upload page
       window.location.href = '/upload';
     } else {
-      // Paid plans - redirect to payment page (placeholder for now)
-      alert(`Payment integration coming soon! Currently everyone gets the free tier.`);
-      // When payment is ready, this would redirect to:
-      // window.location.href = `/payment?plan=${planId}`;
+      // Paid plans - redirect to payment page
+      window.location.href = `/payment?plan=${planId}`;
     }
   };
   return (

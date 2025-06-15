@@ -9,10 +9,12 @@ import { useState, useEffect } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
 import { Timestamp } from 'firebase/firestore';
+import { useSearchParams } from 'next/navigation';
 
 export default function UploadPage() {
   const { user } = useAuth();
   const { isLimitReached, refreshLimit, remainingUploads, usedUploads, totalUploads, userTier } = useUploadLimit();
+  const searchParams = useSearchParams();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -25,6 +27,18 @@ export default function UploadPage() {
   const [additionalPrompt, setAdditionalPrompt] = useState<string>('');
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+
+  // Check for payment success
+  useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      setShowPaymentSuccess(true);
+      // Auto-hide after 5 seconds
+      setTimeout(() => setShowPaymentSuccess(false), 5000);
+      // Refresh the user's limits after successful payment
+      refreshLimit();
+    }
+  }, [searchParams, refreshLimit]);
 
   // Style options
   const styleOptions = [
@@ -236,12 +250,11 @@ export default function UploadPage() {
   };
 
   return (
-    <AuthGuard>      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-gray-100">
+    <AuthGuard>      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-gray-100 overflow-hidden relative">
         <Navigation />
-        
-        {/* Floating Furniture Elements - Show throughout the entire upload journey */}
+          {/* Floating Furniture Elements - Visible but safely positioned */}
         <FloatingElement 
-          position={{ top: '8rem', left: '4rem' }}
+          position={{ top: '10rem', left: '3rem' }}
           size="sm"
           imageSrc="/lamp.png"
           imageAlt="3D Lamp"
@@ -250,7 +263,7 @@ export default function UploadPage() {
         />
         
         <FloatingElement 
-          position={{ top: '6rem', right: '8rem' }}
+          position={{ top: '8rem', right: '6rem' }}
           size="md"
           imageSrc="/chair.png"
           imageAlt="3D Chair"
@@ -258,9 +271,8 @@ export default function UploadPage() {
           rotation="-10deg"
         />
 
-
         <FloatingElement 
-          position={{ bottom: '8rem', right: '4rem' }}
+          position={{ bottom: '8rem', right: '3rem' }}
           size="md"
           imageSrc="/cactus.png"
           imageAlt="3D Plant"
@@ -269,21 +281,39 @@ export default function UploadPage() {
         />
         
         <FloatingElement 
-          position={{ top: '60%', left: '1rem' }}
-          size="xxl"
+          position={{ top: '60%', left: '2rem' }}
+          size="xl"
           imageSrc="/bed.png"
           imageAlt="3D Bed"
           animationDelay="4.2s"
           blur={true}
           rotation="10deg"
-        />
-        
-        <main className="pt-20 pb-16">
+        />        <main className="pt-20 pb-16">
           <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.20)-theme(spacing.16))] p-4">
             <div className="w-full max-w-4xl">              {/* Error Display */}
               {error && (
                 <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
                   {error}
+                </div>
+              )}
+
+              {/* Payment Success Notification */}
+              {showPaymentSuccess && (
+                <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Payment successful! Your plan has been upgraded and your new limits are now active.</span>
+                  </div>
+                  <button 
+                    onClick={() => setShowPaymentSuccess(false)}
+                    className="text-green-600 hover:text-green-800"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               )}
 
