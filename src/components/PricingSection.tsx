@@ -91,17 +91,21 @@ export default function PricingSection() {
                 )}
               </div>              {/* Daily/Monthly Limit */}
               <div className="mb-6">
-                <div className="text-3xl font-bold text-blue-600 mb-1">{plan.monthlyLimit}</div>
-                <div className="text-gray-600">
-                  {plan.id === 'free' 
-                    ? `image${plan.dailyLimit > 1 ? 's' : ''} per day` 
-                    : `images per month`
-                  }
+                <div className="flex items-baseline justify-center gap-2">
+                  <span className="text-3xl font-bold text-blue-600">
+                    {plan.id === 'free' ? plan.dailyLimit : plan.monthlyLimit}
+                  </span>
+                  <span className="text-gray-600">
+                    {plan.id === 'free' 
+                      ? `image${plan.dailyLimit > 1 ? 's' : ''} per day` 
+                      : `images per month`
+                    }
+                  </span>
                 </div>
                 {plan.id !== 'free' && (
                   <div className="text-sm text-gray-500 mt-1">No daily limits</div>
                 )}
-              </div>              {/* Features */}
+              </div>{/* Features */}
               <div className="space-y-3 mb-8 flex-grow">
                 {plan.features.map((feature, featureIndex) => (
                   <div key={featureIndex} className="flex items-center justify-center gap-3">

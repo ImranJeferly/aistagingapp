@@ -48,7 +48,6 @@ export const PRICING_PLANS: PricingPlan[] = [
       'High-quality AI staging',
       'Download images',
       'No daily limits',
-      'Email support'
     ]
   },  {
     id: 'pro',
@@ -65,9 +64,6 @@ export const PRICING_PLANS: PricingPlan[] = [
       'Download images',
       'No daily limits',
       'Priority processing',
-      'Email support',
-      'Bulk upload (coming soon)',
-      'API access (coming soon)'
     ]
   }
 ];

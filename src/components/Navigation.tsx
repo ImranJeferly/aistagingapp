@@ -70,65 +70,92 @@ export default function Navigation() {
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />        </svg>
       </button>      {/* Right side buttons */}
-      <div className="hidden md:flex items-center gap-4 ml-8">        {isAuthenticated ? (
+      <div className="hidden md:flex items-center gap-2 ml-8">
+        {isAuthenticated ? (
           <>
             <Link 
               href="/upload"
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg text-sm"
             >
               Upload
             </Link>
             
-            {/* Plan Display */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-50 border border-blue-200">
+            {/* Combined Plan and Limit Display for Free Users */}
+            {userTier === 'free' ? (
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  userTier === 'free' ? 'bg-gray-400' : 
-                  userTier === 'basic' ? 'bg-yellow-400' : 'bg-purple-400'
-                }`}></div>
-                <span className="text-sm font-medium text-blue-700">
-                  {isLoading ? '...' : currentPlan.name}
-                </span>
+                {/* Compact Plan + Limit Display */}
+                <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gray-50 border border-gray-200">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                    <span className="text-xs font-medium text-gray-600">Free</span>
+                  </div>
+                  <div className="w-px h-4 bg-gray-300"></div>
+                  <div className="flex items-center gap-1">
+                    <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 4v10a2 2 0 002 2h6a2 2 0 002-2V8M9 8h6" />
+                    </svg>
+                    <span className={`text-xs font-medium ${isLimitReached ? 'text-red-600' : 'text-gray-600'}`}>
+                      {isLoading ? '...' : `${remainingUploads}/${totalUploads}`}
+                    </span>
+                    {isLimitReached && (
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse ml-1"></div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Upgrade Button */}
+                <button 
+                  onClick={handleUpgradeClick}
+                  className="px-3 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-semibold rounded-full hover:from-yellow-500 hover:to-orange-500 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg text-xs"
+                >
+                  Upgrade
+                </button>
               </div>
-            </div>
-
-            {/* Upgrade Button - Only show for free tier */}
-            {userTier === 'free' && (
-              <button 
-                onClick={handleUpgradeClick}
-                className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-semibold rounded-full hover:from-yellow-500 hover:to-orange-500 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg text-sm"
-              >
-                Upgrade
-              </button>
+            ) : (
+              <>
+                {/* Separate displays for paid plans */}
+                <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-blue-50 border border-blue-200">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      userTier === 'basic' ? 'bg-yellow-400' : 'bg-purple-400'
+                    }`}></div>
+                    <span className="text-sm font-medium text-blue-700">
+                      {isLoading ? '...' : currentPlan.name}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gray-100 border">
+                  <div className="flex items-center gap-1">
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 4v10a2 2 0 002 2h6a2 2 0 002-2V8M9 8h6" />
+                    </svg>
+                    <span className={`text-sm font-medium ${isLimitReached ? 'text-red-600' : 'text-gray-700'}`}>
+                      {isLoading ? '...' : `${remainingUploads}/${totalUploads}`}
+                    </span>
+                  </div>
+                  {isLimitReached && (
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  )}
+                </div>
+              </>
             )}
             
-            {/* Upload Limit Indicator */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-gray-100 border">
-              <div className="flex items-center gap-1">
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 4v10a2 2 0 002 2h6a2 2 0 002-2V8M9 8h6" />
+            {/* Compact User Menu */}
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 text-xs">
+                {userData?.firstName || user?.displayName?.split(' ')[0] || 'User'}
+              </span>
+              <button
+                onClick={logout}
+                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-all duration-200"
+                title="Logout"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-                <span className={`text-sm font-medium ${isLimitReached ? 'text-red-600' : 'text-gray-700'}`}>
-                  {isLoading ? '...' : `${remainingUploads}/${totalUploads}`}
-                </span>
-              </div>
-              {isLimitReached && (
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              )}
-            </div>
-            
-            <span className="text-gray-600 text-sm">
-              Hello, {userData?.firstName || user?.displayName?.split(' ')[0] || 'User'}
-            </span>
-            <button
-              onClick={logout}
-              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-all duration-200"
-              title="Logout"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button></>
+              </button>
+            </div></>
         ) : (
           <>
             <Link 
