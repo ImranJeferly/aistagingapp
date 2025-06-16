@@ -12,6 +12,7 @@ export interface PricingPlan {
   features: string[];
   recommended?: boolean;
   stripePriceId?: string; // Stripe price ID for subscription
+  paymentLink?: string; // Direct Stripe payment link
 }
 
 // Cost structure
@@ -43,6 +44,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     yearlyPrice: 150, // 2 months free
     recommended: true,
     stripePriceId: 'price_basic_monthly', // This will need to be updated with actual Stripe price ID
+    paymentLink: process.env.STRIPE_BASIC_PAYMENT_LINK || 'https://buy.stripe.com/14AdR9f5v3f2ddJ4pSafS02',
     features: [
       '20 staged images per month',
       'All room types supported',
@@ -59,6 +61,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     monthlyPrice: 30, // $0.60 per image
     yearlyPrice: 300, // 2 months free
     stripePriceId: 'price_pro_monthly', // This will need to be updated with actual Stripe price ID
+    paymentLink: process.env.STRIPE_PRO_PAYMENT_LINK || 'https://buy.stripe.com/14A4gz9Lb9Dq6Pl1dGafS01',
     features: [
       '50 staged images per month',
       'All room types supported',

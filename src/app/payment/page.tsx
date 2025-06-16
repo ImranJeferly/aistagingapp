@@ -9,19 +9,18 @@ import { useUploadLimit } from '../../hooks/useUploadLimit';
 export default function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated } = useAuth();  const { userTier } = useUploadLimit();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();  const { userTier } = useUploadLimit();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const planId = searchParams.get('plan') as PricingTier | null;
   const selectedPlan = planId ? PRICING_PLANS.find(p => p.id === planId) : null;
-
-  // Redirect if not authenticated
+  // Redirect if not authenticated (but wait for auth to finish loading)
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, authLoading, router]);
 
   // Redirect if no plan selected or invalid plan
   useEffect(() => {
@@ -78,8 +77,7 @@ export default function PaymentPage() {
       setIsLoading(false);
     }
   };
-
-  if (!isAuthenticated || !selectedPlan) {
+  if (authLoading || !isAuthenticated || !selectedPlan) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

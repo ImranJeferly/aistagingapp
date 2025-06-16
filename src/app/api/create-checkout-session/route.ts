@@ -19,16 +19,17 @@ export async function POST(request: NextRequest) {
         { error: 'Cannot create checkout session for free plan' },
         { status: 400 }
       );
-    }
-
-    // Get user data
+    }    // Get user data
+    console.log('Fetching user data for userId:', userId);
     const userData = await getUserData(userId);
     if (!userData) {
+      console.error('User document not found in Firestore for userId:', userId);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'User not found in database. Please ensure your account is properly set up.' },
         { status: 404 }
       );
     }
+    console.log('User data found:', userData.email);
 
     // Get or create Stripe customer
     let customerRecord = await getCustomerRecord(userId);

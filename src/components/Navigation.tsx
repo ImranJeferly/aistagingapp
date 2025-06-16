@@ -12,24 +12,67 @@ import { getCurrentPlan } from '../services/pricingService';
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isAuthenticated, logout, user, userData } = useAuth();
+  const { isAuthenticated, logout, user, userData, isLoading: authLoading } = useAuth();
   const { remainingUploads, totalUploads, isLimitReached, isLoading, userTier } = useUploadLimit();
   
   // Get current plan details
-  const currentPlan = getCurrentPlan(userTier);
-  
-  const handleUpgradeClick = () => {
-    // Scroll to pricing section on homepage
-    if (window.location.pathname === '/') {
-      const pricingSection = document.getElementById('pricing');
-      if (pricingSection) {
-        pricingSection.scrollIntoView({ behavior: 'smooth' });
+  const currentPlan = getCurrentPlan(userTier);  const handleUpgradeClick = async () => {
+    // Check if auth is still loading
+    if (authLoading) {
+      console.log('Authentication still loading, please wait...');
+      return;
+    }
+
+    if (!isAuthenticated || !user || !user.uid) {
+      // If not authenticated, redirect to login
+      window.location.href = '/login';
+      return;
+    }
+
+    try {
+      // Get the Basic plan details (recommended upgrade)
+      const basicPlan = getCurrentPlan('basic');
+      
+      if (!basicPlan.stripePriceId) {
+        console.error('Stripe price ID not configured for Basic plan');
+        // Fallback to pricing section
+        window.location.href = '/#pricing';
+        return;
       }
-    } else {
-      // Navigate to homepage pricing section
+
+      console.log('Creating checkout session for user:', user.uid, 'plan: basic');
+
+      // Create checkout session directly
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          planType: 'basic',
+          priceId: basicPlan.stripePriceId,
+          successUrl: `${window.location.origin}/upload?payment=success`,
+          cancelUrl: `${window.location.origin}/#pricing`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('API Error:', data);
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      console.log('Checkout session created, redirecting to:', data.url);
+      // Redirect directly to Stripe Checkout
+      window.location.href = data.url;
+    } catch (error) {
+      console.error('Checkout error:', error);
+      // Fallback to pricing section on error
       window.location.href = '/#pricing';
     }
-  };  useEffect(() => {
+  };useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
       setIsScrolled(scrollPosition > 100);

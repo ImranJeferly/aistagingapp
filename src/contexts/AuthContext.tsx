@@ -10,6 +10,7 @@ import {
   loginWithGoogle,
   logout as authLogout,
   getUserData,
+  createUserDocument,
   UserData,
   RegisterData
 } from '../services/authService';
@@ -31,14 +32,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       
       if (user) {
         // Fetch additional user data from Firestore
-        const userData = await getUserData(user.uid);
+        let userData = await getUserData(user.uid);
+        
+        // If user document doesn't exist, create it
+        if (!userData) {
+          console.log('User document not found, creating one for:', user.email);
+          await createUserDocument(user);
+          // Fetch the newly created user data
+          userData = await getUserData(user.uid);
+        }
+        
         setUserData(userData);
       } else {
         setUserData(null);

@@ -7,8 +7,14 @@ import WigglyLine from './WigglyLine';
 import { PRICING_PLANS } from '../services/pricingService';
 
 export default function PricingSection() {
-  const { isAuthenticated } = useAuth();
-  const handleButtonClick = (planId: string) => {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth();
+  const handleButtonClick = async (planId: string) => {
+    // Check if auth is still loading
+    if (authLoading) {
+      console.log('Authentication still loading, please wait...');
+      return;
+    }
+
     if (!isAuthenticated) {
       // Redirect to login page if not authenticated
       window.location.href = '/login';
@@ -18,11 +24,29 @@ export default function PricingSection() {
     if (planId === 'free') {
       // Free plan - redirect to upload page
       window.location.href = '/upload';
-    } else {
-      // Paid plans - redirect to payment page
-      window.location.href = `/payment?plan=${planId}`;
+      return;
     }
+
+    // For paid plans, use direct Stripe payment links
+    const selectedPlan = PRICING_PLANS.find(p => p.id === planId);
+    
+    if (!selectedPlan || !selectedPlan.paymentLink) {
+      console.error('Plan or payment link not found for:', planId);
+      alert('Plan configuration error. Please try again or contact support.');
+      return;
+    }
+
+    if (!user || !user.uid) {
+      console.error('User object or uid not found:', user);
+      alert('Please wait for authentication to complete, then try again.');
+      return;
+    }
+
+    // Redirect directly to Stripe Payment Link
+    console.log('Redirecting to payment link for plan:', planId);
+    window.location.href = selectedPlan.paymentLink;
   };
+
   return (
     <section id="pricing" className="relative py-12 md:py-16 bg-gradient-to-br from-blue-600 to-blue-800 overflow-hidden">
       {/* Floating Elements */}
