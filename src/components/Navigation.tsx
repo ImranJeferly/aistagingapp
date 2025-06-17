@@ -33,42 +33,24 @@ export default function Navigation() {
       // Get the Basic plan details (recommended upgrade)
       const basicPlan = getCurrentPlan('basic');
       
-      if (!basicPlan.stripePriceId) {
-        console.error('Stripe price ID not configured for Basic plan');
+      if (!basicPlan.paymentLink) {
+        console.error('Payment link not configured for Basic plan');
         // Fallback to pricing section
         window.location.href = '/#pricing';
         return;
       }
 
-      console.log('Creating checkout session for user:', user.uid, 'plan: basic');
-
-      // Create checkout session directly
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          planType: 'basic',
-          priceId: basicPlan.stripePriceId,
-          successUrl: `${window.location.origin}/upload?payment=success`,
-          cancelUrl: `${window.location.origin}/#pricing`,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error('API Error:', data);
-        throw new Error(data.error || 'Failed to create checkout session');
+      // Prefill email in payment link
+      const paymentUrl = new URL(basicPlan.paymentLink);
+      if (user.email) {
+        paymentUrl.searchParams.set('prefilled_email', user.email);
       }
 
-      console.log('Checkout session created, redirecting to:', data.url);
-      // Redirect directly to Stripe Checkout
-      window.location.href = data.url;
+      console.log('Redirecting to payment link for user:', user.uid, 'plan: basic');
+      // Redirect directly to Stripe Payment Link
+      window.location.href = paymentUrl.toString();
     } catch (error) {
-      console.error('Checkout error:', error);
+      console.error('Payment redirect error:', error);
       // Fallback to pricing section on error
       window.location.href = '/#pricing';
     }
