@@ -333,9 +333,8 @@ export default function Navigation() {
                     </svg>
                     <span className={`font-medium ${isLimitReached ? 'text-red-600' : 'text-gray-600'}`}>
                       {isLoading ? '...' : `${remainingUploads}/${totalUploads}`}
-                    </span>
-                    <span className="text-gray-500">
-                      {userTier === 'free' ? 'today' : 'this month'}
+                    </span>                    <span className="text-gray-500">
+                      {userTier === 'free' ? 'total' : 'this month'}
                     </span>
                   </div>
                 </div>

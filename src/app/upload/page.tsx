@@ -108,10 +108,15 @@ function UploadPageContent() {
       reader.readAsDataURL(file);
     }
   };
-
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file size (warn if over 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        console.warn(`Large file detected: ${file.size} bytes. Will be compressed before upload.`);
+      }
+      
       setSelectedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -120,27 +125,92 @@ function UploadPageContent() {
       reader.readAsDataURL(file);
     }
   };
-  const handleUpload = async () => {
-    if (!selectedFile || !user || !isFormValid) return;    // Check if user can upload
+  // Function to compress image before upload
+  const compressImage = async (file: File, maxWidth = 1024, quality = 0.8): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions
+        let { width, height } = img;
+        
+        // Only compress if image is larger than maxWidth or file size is over 1MB
+        const shouldCompress = width > maxWidth || file.size > 1024 * 1024;
+        
+        if (shouldCompress) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          // Set canvas dimensions
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw and compress image
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`);
+                resolve(compressedFile);
+              } else {
+                console.warn('Compression failed, using original file');
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        } else {
+          console.log('Image does not need compression');
+          resolve(file);
+        }
+      };
+      
+      img.onerror = () => {
+        console.error('Failed to load image for compression');
+        resolve(file); // Fallback to original file
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+    const handleUpload = async () => {
+    if (!selectedFile || !user || !isFormValid) return;
+
+    // Check if user can upload
     const canUpload = await canUserUpload(user.uid);
     if (!canUpload) {
       const tier = userTier || 'free';
       if (tier === 'free') {
-        setError('You have reached your daily limit of 1 staged image. Your limit resets 24 hours after your upload.');
+        setError('You have reached your limit of 5 total staged images. Upgrade to a paid plan for monthly limits.');
       } else {
         setError('You have reached your monthly limit. Your limit resets on the 1st of next month.');
       }
       return;
     }
     
-    setError(null);    setIsUploading(true);
+    setError(null);
+    setIsUploading(true);
     
     try {
-      // Convert image to base64 for OpenAI API
+      // Compress image before upload to avoid 413 errors
+      console.log(`Original file size: ${selectedFile.size} bytes`);
+      const compressedFile = await compressImage(selectedFile, 1024, 0.8);
+      
+      // Convert compressed image to base64 for OpenAI API
       const base64Image = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(selectedFile);
+        reader.readAsDataURL(compressedFile);
       });
 
       // Call OpenAI API for room analysis and staging
@@ -155,23 +225,27 @@ function UploadPageContent() {
           roomType: selectedRoomType,
           additionalPrompt: additionalPrompt.trim() || undefined,
         }),
-      });
-
-      if (!response.ok) {
+      });      if (!response.ok) {
         let errorMessage = 'Failed to stage image';
-        try {
-          const responseText = await response.text();
+        
+        // Handle specific error codes
+        if (response.status === 413) {
+          errorMessage = 'Image file too large. Please try with a smaller image or try again (the image will be automatically compressed).';
+        } else {
           try {
-            const errorData = JSON.parse(responseText);
-            errorMessage = errorData.error || errorMessage;
-          } catch (parseError) {
-            // If we can't parse as JSON, it might be HTML
-            console.error('API returned non-JSON response:', responseText);
+            const responseText = await response.text();
+            try {
+              const errorData = JSON.parse(responseText);
+              errorMessage = errorData.error || errorMessage;
+            } catch (parseError) {
+              // If we can't parse as JSON, it might be HTML
+              console.error('API returned non-JSON response:', responseText);
+              errorMessage = `Server error (${response.status}): ${response.statusText}`;
+            }
+          } catch (readError) {
+            console.error('Failed to read error response:', readError);
             errorMessage = `Server error (${response.status}): ${response.statusText}`;
           }
-        } catch (readError) {
-          console.error('Failed to read error response:', readError);
-          errorMessage = `Server error (${response.status}): ${response.statusText}`;
         }
         throw new Error(errorMessage);
       }
@@ -329,9 +403,8 @@ function UploadPageContent() {
                       <span className="text-sm text-green-600 font-medium">
                         {remainingUploads} remaining
                       </span>
-                    ) : (
-                      <span className="text-sm text-red-600 font-medium">
-                        Limit reached
+                    ) : (                      <span className="text-sm text-red-600 font-medium">
+                        Limit Reached
                       </span>
                     )}
                   </div>
@@ -597,9 +670,8 @@ function UploadPageContent() {
                             <div className="flex items-center justify-center">
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                               Staging Image...
-                            </div>
-                          ) : isLimitReached ? (
-                            'Daily Limit Reached'
+                            </div>                          ) : isLimitReached ? (
+                            'Limit Reached'
                           ) : !isFormValid ? (
                             'Please Select Style & Room Type'
                           ) : (
