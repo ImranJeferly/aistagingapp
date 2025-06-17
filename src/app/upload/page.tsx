@@ -251,13 +251,12 @@ function UploadPageContent() {
 
   return (
     <AuthGuard>      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-gray-100 overflow-hidden relative">
-        <Navigation />
-          {/* Floating Furniture Elements - Visible but safely positioned */}
+        <Navigation />          {/* Floating Furniture Elements - Visible but safely positioned */}
         <FloatingElement 
           position={{ top: '10rem', left: '3rem' }}
           size="sm"
           imageSrc="/lamp.png"
-          imageAlt="3D Lamp"
+          imageAlt="Upload property photos for AI virtual staging real estate marketing automation"
           animationDelay="0s"
           rotation="15deg"
         />
@@ -266,7 +265,7 @@ function UploadPageContent() {
           position={{ top: '8rem', right: '6rem' }}
           size="md"
           imageSrc="/chair.png"
-          imageAlt="3D Chair"
+          imageAlt="Transform empty rooms with AI home staging technology virtual furniture placement"
           animationDelay="1.2s"
           rotation="-10deg"
         />
@@ -275,7 +274,7 @@ function UploadPageContent() {
           position={{ bottom: '8rem', right: '3rem' }}
           size="md"
           imageSrc="/cactus.png"
-          imageAlt="3D Plant"
+          imageAlt="Professional virtual staging increases property value real estate agent success"
           animationDelay="3.5s"
           rotation="-15deg"
         />
@@ -284,11 +283,11 @@ function UploadPageContent() {
           position={{ top: '60%', left: '2rem' }}
           size="xl"
           imageSrc="/bed.png"
-          imageAlt="3D Bed"
+          imageAlt="AI powered interior design software revolutionizes real estate photography staging"
           animationDelay="4.2s"
           blur={true}
           rotation="10deg"
-        />        <main className="pt-20 pb-16">
+        /><main className="pt-20 pb-16">
           <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.20)-theme(spacing.16))] p-4">
             <div className="w-full max-w-4xl">              {/* Error Display */}
               {error && (
@@ -449,10 +448,9 @@ function UploadPageContent() {
                     <div className="mb-8">
                       <div className="max-w-2xl mx-auto">
                         <div className="relative rounded-3xl overflow-hidden bg-gray-100 shadow-xl">
-                          {stagedImageUrl ? (
-                            <img
+                          {stagedImageUrl ? (                            <img
                               src={stagedImageUrl}
-                              alt="AI staged room"
+                              alt="AI virtual staging result professional home staging transforms empty property rooms real estate marketing success"
                               className="w-full h-auto object-cover"
                             />
                           ) : (
@@ -508,10 +506,9 @@ function UploadPageContent() {
                       </svg>
                     </button>                    {/* Image Display Only */}
                     <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-                      {previewUrl ? (
-                        <img
+                      {previewUrl ? (                        <img
                           src={previewUrl}
-                          alt="Selected image"
+                          alt="Empty property room ready for AI virtual staging real estate photography enhancement"
                           className="w-full h-96 object-cover"
                         />
                       ) : (

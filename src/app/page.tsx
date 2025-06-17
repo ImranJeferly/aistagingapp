@@ -73,7 +73,7 @@ export default function Home() {
             position={{ top: '8rem', left: '8rem' }}
             size="sm"
             imageSrc="/lamp.png"
-            imageAlt="3D Lamp"
+            imageAlt="Professional AI home staging software for real estate agents virtual furniture placement modern interior design"
             animationDelay="0s"
             rotation="20deg"
           />
@@ -82,7 +82,7 @@ export default function Home() {
             position={{ top: '5rem', right: '20%' }}
             size="md"
             imageSrc="/chair.png"
-            imageAlt="3D Chair"
+            imageAlt="Free AI staging app transforms empty rooms into stunning staged properties for real estate marketing"
             animationDelay="1.5s"
             rotation="20deg"
           />
@@ -91,7 +91,7 @@ export default function Home() {
             position={{ top: '60%', left: '6rem' }}
             size="xxl"
             imageSrc="/bed.png"
-            imageAlt="3D Bed"
+            imageAlt="Virtual home staging tool increases property value with AI powered interior design for real estate listings"
             animationDelay="3s"
             blur={true}
             rotation="20deg"
@@ -101,7 +101,7 @@ export default function Home() {
             position={{ top: '90%', right: '6rem' }}
             size="md"
             imageSrc="/cactus.png"
-            imageAlt="3D Plant"
+            imageAlt="Best virtual staging software for property managers automate home staging with artificial intelligence"
             animationDelay="4.2s"
             blur={true}
             rotation="-20deg"
@@ -111,7 +111,7 @@ export default function Home() {
             position={{ top: '50%', right: '8%' }}
             size="md"
             imageSrc="/table.png"
-            imageAlt="3D Table"
+            imageAlt="AI home staging platform revolutionizes real estate photography with instant virtual furniture placement"
             animationDelay="2.7s"
             rotation="-20deg"
           />

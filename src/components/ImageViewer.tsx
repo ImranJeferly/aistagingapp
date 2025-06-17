@@ -177,13 +177,12 @@ export default function ImageViewer() {
     setSliderPosition(50);
   };
   return (
-    <section className="relative py-16 md:py-20 bg-white overflow-hidden">
-      {/* Floating Lamp */}
+    <section className="relative py-16 md:py-20 bg-white overflow-hidden">      {/* Floating Lamp */}
       <FloatingElement 
         position={{ top: '10%', right: '8%' }}
         size="md"
         imageSrc="/stool.png"
-        imageAlt="3D Lamp"
+        imageAlt="AI virtual staging software for real estate professionals automated home staging technology"
         animationDelay="1s"
         rotation="15deg"
       />
@@ -202,7 +201,7 @@ export default function ImageViewer() {
         position={{ bottom: '10%', left: '8%' }}
         size="lg"
         imageSrc="/cabinet.png"
-        imageAlt="3D Cabinet"
+        imageAlt="Best virtual home staging platform increases property sales with AI interior design solutions"
         animationDelay="2s"
         rotation="-10deg"
       />
@@ -278,7 +277,7 @@ export default function ImageViewer() {
               <div className="absolute inset-0">
                 <Image
                   src={selectedRoom.afterImage}
-                  alt={`AI Staged ${selectedRoom.name}`}
+                  alt={`Professional AI home staging transforms ${selectedRoom.name} virtual furniture placement real estate marketing success`}
                   fill
                   className="object-cover"
                   priority
@@ -292,7 +291,7 @@ export default function ImageViewer() {
               >
                 <Image
                   src={selectedRoom.beforeImage}
-                  alt={`Empty ${selectedRoom.name}`}
+                  alt={`Empty property ${selectedRoom.name} before AI staging virtual home staging increases property value real estate listings`}
                   fill
                   className="object-cover"
                   priority

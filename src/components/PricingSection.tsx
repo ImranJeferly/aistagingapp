@@ -88,13 +88,12 @@ export default function PricingSection() {
   };
 
   return (
-    <section id="pricing" className="relative py-12 md:py-16 bg-gradient-to-br from-blue-600 to-blue-800 overflow-hidden">
-      {/* Floating Elements */}
+    <section id="pricing" className="relative py-12 md:py-16 bg-gradient-to-br from-blue-600 to-blue-800 overflow-hidden">      {/* Floating Elements */}
       <FloatingElement 
         position={{ top: '20%', left: '10%' }}
         size="lg"
         imageSrc="/cactus.png"
-        imageAlt="3D Lamp"
+        imageAlt="Affordable AI virtual staging pricing plans for real estate agents property managers"
         animationDelay="0.8s"
         rotation="25deg"
       />
@@ -103,7 +102,7 @@ export default function PricingSection() {
         position={{ bottom: '15%', right: '12%' }}
         size="lg"
         imageSrc="/officechair.png"
-        imageAlt="3D Table"
+        imageAlt="Professional virtual home staging software subscriptions increase property value real estate success"
         animationDelay="1.2s"
         rotation="-18deg"
       />

@@ -42,13 +42,12 @@ export default function UploadSection() {
   };
 
   return (
-    <section className="relative py-16 md:py-20 bg-gray-50 overflow-hidden">
-      {/* Floating Elements */}
+    <section className="relative py-16 md:py-20 bg-gray-50 overflow-hidden">      {/* Floating Elements */}
       <FloatingElement 
         position={{ top: '15%', left: '5%' }}
         size="xl"
         imageSrc="/sofa.png"
-        imageAlt="3D Chair"
+        imageAlt="Free AI home staging app for real estate agents virtual furniture placement software"
         animationDelay="0.5s"
         rotation="-15deg"
       />
@@ -57,7 +56,7 @@ export default function UploadSection() {
         position={{ top: '60%', left: '8%' }}
         size="sm"
         imageSrc="/plant.png"
-        imageAlt="3D Chair"
+        imageAlt="Virtual staging technology revolutionizes real estate marketing with AI interior design automation"
         animationDelay="0.5s"
         rotation="-15deg"
       />
@@ -66,7 +65,7 @@ export default function UploadSection() {
         position={{ bottom: '20%', right: '8%' }}
         size="md"
         imageSrc="/tallplant.png"
-        imageAlt="3D Plant"
+        imageAlt="AI powered virtual home staging increases property sales for real estate professionals"
         animationDelay="1.5s"
         rotation="20deg"
       />

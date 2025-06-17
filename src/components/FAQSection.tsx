@@ -104,13 +104,12 @@ export default function FAQSection() {
   };
 
   return (
-    <section className="relative py-16 md:py-24 bg-gray-50 overflow-hidden">
-      {/* Floating Elements */}
+    <section className="relative py-16 md:py-24 bg-gray-50 overflow-hidden">      {/* Floating Elements */}
       <FloatingElement 
         position={{ top: '10%', left: '5%' }}
         size="sm"
         imageSrc="/chair.png"
-        imageAlt="3D Chair"
+        imageAlt="AI home staging frequently asked questions virtual staging software real estate marketing"
         animationDelay="0.5s"
         rotation="15deg"
       />
@@ -119,7 +118,7 @@ export default function FAQSection() {
         position={{ top: '70%', right: '8%' }}
         size="md"
         imageSrc="/plant.png"
-        imageAlt="3D Plant"
+        imageAlt="Virtual staging FAQ AI interior design automation real estate agent tools property success"
         animationDelay="1.8s"
         rotation="-25deg"
         blur={true}
