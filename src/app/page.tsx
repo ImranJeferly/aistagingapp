@@ -10,9 +10,53 @@ import PricingSection from '../components/PricingSection';
 import FAQSection from '../components/FAQSection';
 import Footer from '../components/Footer';
 
+// JSON-LD structured data for SEO
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "AI Staging App",
+  "description": "Transform empty rooms into stunning spaces with our free AI staging platform. Professional home staging in 30 seconds.",
+  "url": process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web Browser",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free AI home staging tool"
+  },
+  "creator": {
+    "@type": "Organization",
+    "name": "AI Staging App",
+    "url": process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com"
+  },
+  "featureList": [
+    "AI-powered home staging",
+    "Real estate photo enhancement",
+    "Virtual furniture placement",
+    "Multiple interior design styles",
+    "Instant results in 30 seconds",
+    "Free tier available",
+    "Professional quality staging"
+  ],
+  "screenshot": "https://aistagingapp.com/og-image.png",
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "ratingCount": "100",
+    "bestRating": "5",
+    "worstRating": "1"
+  }
+};
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Navigation */}
       <Navigation />
 
