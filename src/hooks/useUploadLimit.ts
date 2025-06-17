@@ -4,15 +4,15 @@ import { getRemainingUploads, getUserDailyLimit, getUserMonthlyLimit, getUserTie
 
 export const useUploadLimit = () => {
   const { user, isAuthenticated } = useAuth();
-  const [remainingUploads, setRemainingUploads] = useState<{ daily: number; monthly: number }>({ daily: 1, monthly: 30 });
-  const [totalLimits, setTotalLimits] = useState<{ daily: number; monthly: number }>({ daily: 1, monthly: 30 });
+  const [remainingUploads, setRemainingUploads] = useState<{ daily: number; monthly: number }>({ daily: 999, monthly: 5 });
+  const [totalLimits, setTotalLimits] = useState<{ daily: number; monthly: number }>({ daily: 999, monthly: 5 });
   const [userTier, setUserTier] = useState<'free' | 'basic' | 'pro'>('free');
   const [isLoading, setIsLoading] = useState(false);
   
   const fetchUploadLimits = async () => {
     if (!user || !isAuthenticated) {
-      setRemainingUploads({ daily: 1, monthly: 30 });
-      setTotalLimits({ daily: 1, monthly: 30 });
+      setRemainingUploads({ daily: 999, monthly: 5 });
+      setTotalLimits({ daily: 999, monthly: 5 });
       setUserTier('free');
       return;
     }
@@ -28,12 +28,11 @@ export const useUploadLimit = () => {
       
       setRemainingUploads(remaining);
       setTotalLimits({ daily: dailyLimit, monthly: monthlyLimit });
-      setUserTier(tier);
-    } catch (error) {
+      setUserTier(tier);    } catch (error) {
       console.error('Error fetching upload limits:', error);
       // Default to free tier for new users or when there's an error
-      setRemainingUploads({ daily: 1, monthly: 30 });
-      setTotalLimits({ daily: 1, monthly: 30 });
+      setRemainingUploads({ daily: 999, monthly: 5 });
+      setTotalLimits({ daily: 999, monthly: 5 });
       setUserTier('free');
     } finally {
       setIsLoading(false);
@@ -47,23 +46,15 @@ export const useUploadLimit = () => {
   const refreshLimit = () => {
     fetchUploadLimits();
   };
+  // For free tier, show total/lifetime limits (stored in monthly field)
+  // For paid tiers, show monthly limits
+  const isLimitReached = remainingUploads.monthly <= 0;
 
-  // For free tier, show daily limits. For paid tiers, show monthly limits
-  const isLimitReached = userTier === 'free' 
-    ? remainingUploads.daily <= 0 
-    : remainingUploads.monthly <= 0;
+  const displayRemaining = remainingUploads.monthly;
 
-  const displayRemaining = userTier === 'free' 
-    ? remainingUploads.daily 
-    : remainingUploads.monthly;
+  const displayUsed = totalLimits.monthly - remainingUploads.monthly;
 
-  const displayUsed = userTier === 'free'
-    ? totalLimits.daily - remainingUploads.daily
-    : totalLimits.monthly - remainingUploads.monthly;
-
-  const displayTotal = userTier === 'free'
-    ? totalLimits.daily
-    : totalLimits.monthly;
+  const displayTotal = totalLimits.monthly;
 
   return {
     remainingUploads: displayRemaining,

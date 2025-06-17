@@ -77,6 +77,32 @@ export const addCompletedUploadRecord = async (uploadData: Omit<UploadRecord, 'i
   }
 };
 
+export const getUserTotalUploads = async (userId: string): Promise<UploadRecord[]> => {
+  try {
+    // Query all completed uploads for the user (for free tier lifetime limit)
+    const uploadsRef = collection(db, 'users', userId, 'uploads');
+    const q = query(
+      uploadsRef,
+      where('status', '==', 'completed')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    // Filter out initialization document
+    const uploads = querySnapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as UploadRecord))
+      .filter(upload => upload.id !== 'init');
+    
+    return uploads;
+  } catch (error) {
+    console.error('Error getting total user uploads:', error);
+    return [];
+  }
+};
+
 export const getUserUploadsThisMonth = async (userId: string): Promise<UploadRecord[]> => {
   try {
     // Calculate start of current month
@@ -143,13 +169,22 @@ export const getUserUploadsToday = async (userId: string): Promise<UploadRecord[
 
 export const getRemainingUploads = async (userId: string): Promise<{ daily: number; monthly: number }> => {
   try {
-    const [todayUploads, monthlyUploads, dailyLimit, monthlyLimit, tier] = await Promise.all([
+    const tier = await getUserTier(userId);
+    const [todayUploads, dailyLimit, monthlyLimit] = await Promise.all([
       getUserUploadsToday(userId),
-      getUserUploadsThisMonth(userId),
       getUserDailyLimit(userId),
-      getUserMonthlyLimit(userId),
-      getUserTier(userId)
+      getUserMonthlyLimit(userId)
     ]);
+    
+    let monthlyUploads: UploadRecord[];
+    
+    // For free tier, use total uploads (lifetime limit)
+    // For paid tiers, use monthly uploads
+    if (tier === 'free') {
+      monthlyUploads = await getUserTotalUploads(userId);
+    } else {
+      monthlyUploads = await getUserUploadsThisMonth(userId);
+    }
     
     const dailyRemaining = Math.max(0, dailyLimit - todayUploads.length);
     const monthlyRemaining = Math.max(0, monthlyLimit - monthlyUploads.length);
@@ -162,8 +197,8 @@ export const getRemainingUploads = async (userId: string): Promise<{ daily: numb
     console.error('Error getting remaining uploads:', error);
     // Return free tier limits for new users or when there's an error
     return {
-      daily: 1,
-      monthly: 30
+      daily: 999, // Updated to match new free tier daily limit
+      monthly: 5  // Updated to match new free tier total limit
     };
   }
 };
@@ -173,12 +208,9 @@ export const canUserUpload = async (userId: string): Promise<boolean> => {
     const remaining = await getRemainingUploads(userId);
     const tier = await getUserTier(userId);
     
-    // For free tier, check daily limit
-    if (tier === 'free') {
-      return remaining.daily > 0;
-    }
-    
-    // For paid tiers, check monthly limit (they have no daily limits)
+    // For all tiers now, check monthly/total limit
+    // Free tier: monthly represents total lifetime uploads (5 max)
+    // Paid tiers: monthly represents monthly uploads
     return remaining.monthly > 0;
   } catch (error) {
     console.error('Error checking upload permission:', error);

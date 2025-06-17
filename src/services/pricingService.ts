@@ -24,18 +24,18 @@ export const PRICING_PLANS: PricingPlan[] = [
   {
     id: 'free',
     name: 'Free',
-    dailyLimit: 1,
-    monthlyLimit: 30, // 1 per day max
+    dailyLimit: 999, // No daily limit for free tier
+    monthlyLimit: 5, // 5 total free images (lifetime)
     monthlyPrice: 0,
     yearlyPrice: 0,
     features: [
-      '1 staged image per day',
+      '5 free staged images',
       'All room types supported',
       'All interior styles',
       'High-quality AI staging',
       'Download images'
     ]
-  },  {
+  },{
     id: 'basic',
     name: 'Basic',
     dailyLimit: 999, // No daily limit, only monthly

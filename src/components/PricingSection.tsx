@@ -163,11 +163,11 @@ export default function PricingSection() {
               <div className="mb-6">
                 <div className="flex items-baseline justify-center gap-2">
                   <span className="text-3xl font-bold text-blue-600">
-                    {plan.id === 'free' ? plan.dailyLimit : plan.monthlyLimit}
+                    {plan.id === 'free' ? plan.monthlyLimit : plan.monthlyLimit}
                   </span>
                   <span className="text-gray-600">
                     {plan.id === 'free' 
-                      ? `image${plan.dailyLimit > 1 ? 's' : ''} per day` 
+                      ? `free images total` 
                       : `images per month`
                     }
                   </span>
