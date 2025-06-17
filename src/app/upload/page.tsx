@@ -517,7 +517,8 @@ function UploadPageContent() {
                       </div>
                       <h3 className="text-2xl font-semibold text-gray-900 mb-2">AI Staging Complete!</h3>
                       <p className="text-gray-600">Your staged result is ready</p>
-                    </div>                      {/* Staged Result Image */}
+                    </div>                      
+                    {/* Staged Result Image */}
                     <div className="mb-8">
                       <div className="max-w-2xl mx-auto">
                         <div className="relative rounded-3xl overflow-hidden bg-gray-100 shadow-xl">
