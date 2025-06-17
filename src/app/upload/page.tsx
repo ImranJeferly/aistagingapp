@@ -5,13 +5,13 @@ import AuthGuard from '../../components/AuthGuard';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import FloatingElement from '../../components/FloatingElement';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
 import { Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
-export default function UploadPage() {
+function UploadPageContent() {
   const { user } = useAuth();
   const { isLimitReached, refreshLimit, remainingUploads, usedUploads, totalUploads, userTier } = useUploadLimit();
   const searchParams = useSearchParams();
@@ -666,8 +666,7 @@ export default function UploadPage() {
                         </p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  ))}                </div>
               )}
             </div>
           </section>
@@ -676,5 +675,30 @@ export default function UploadPage() {
         <Footer />
       </div>
     </AuthGuard>
+  );
+}
+
+// Loading component for Suspense fallback
+function UploadPageLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <Navigation />
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+// Main export with Suspense boundary
+export default function UploadPage() {
+  return (
+    <Suspense fallback={<UploadPageLoading />}>
+      <UploadPageContent />
+    </Suspense>
   );
 }
