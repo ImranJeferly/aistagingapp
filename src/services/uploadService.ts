@@ -39,11 +39,13 @@ export const getUserTier = async (userId: string): Promise<PricingTier> => {
       
       // Validate that the plan is a valid PricingTier
       if (plan === 'free' || plan === 'basic' || plan === 'pro') {
+        console.log(`[DEBUG] getUserTier for ${userId}: Found plan = ${plan}`);
         return plan;
       }
     }
     
     // Default to free tier if user document doesn't exist or plan is invalid
+    console.log(`[DEBUG] getUserTier for ${userId}: Using default 'free' tier`);
     return 'free';
   } catch (error) {
     console.error('Error fetching user tier from Firestore:', error);
@@ -96,6 +98,7 @@ export const getUserTotalUploads = async (userId: string): Promise<UploadRecord[
       } as UploadRecord))
       .filter(upload => upload.id !== 'init');
     
+    console.log(`[DEBUG] getUserTotalUploads for ${userId}: Found ${uploads.length} total uploads`);
     return uploads;
   } catch (error) {
     console.error('Error getting total user uploads:', error);
@@ -177,17 +180,20 @@ export const getRemainingUploads = async (userId: string): Promise<{ daily: numb
     ]);
     
     let monthlyUploads: UploadRecord[];
-    
-    // For free tier, use total uploads (lifetime limit)
+      // For free tier, use total uploads (lifetime limit)
     // For paid tiers, use monthly uploads
     if (tier === 'free') {
       monthlyUploads = await getUserTotalUploads(userId);
+      console.log(`[DEBUG] Free tier: Using total uploads (${monthlyUploads.length} uploads) for user ${userId}`);
     } else {
       monthlyUploads = await getUserUploadsThisMonth(userId);
+      console.log(`[DEBUG] Paid tier: Using monthly uploads (${monthlyUploads.length} uploads) for user ${userId}`);
     }
     
     const dailyRemaining = Math.max(0, dailyLimit - todayUploads.length);
     const monthlyRemaining = Math.max(0, monthlyLimit - monthlyUploads.length);
+    
+    console.log(`[DEBUG] User ${userId} (${tier}): dailyLimit=${dailyLimit}, monthlyLimit=${monthlyLimit}, totalUploads=${monthlyUploads.length}, remaining=${monthlyRemaining}`);
     
     return {
       daily: dailyRemaining,

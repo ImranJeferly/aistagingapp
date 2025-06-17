@@ -321,7 +321,7 @@ function UploadPageContent() {
                     <svg className="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {userTier} Plan: {usedUploads} / {totalUploads} image{totalUploads > 1 ? 's' : ''} {userTier === 'free' ? 'per day' : 'this month'}
+                      {userTier} Plan: {usedUploads} / {totalUploads} image{totalUploads > 1 ? 's' : ''} {userTier === 'free' ? 'total' : 'this month'}
                     </span>
                   </div>
                   <div className="flex items-center">
@@ -348,7 +348,7 @@ function UploadPageContent() {
                 </div>                {isLimitReached && (
                   <p className="text-xs text-gray-500 mt-2">
                     {userTier === 'free' 
-                      ? 'Free tier allows 1 staged image per day. Your limit resets 24 hours after your upload.'
+                      ? 'Free tier includes 5 staged images total. Upgrade to a paid plan for monthly limits.'
                       : `Your monthly limit resets on the 1st of next month. Consider upgrading for more images.`
                     }
                   </p>
