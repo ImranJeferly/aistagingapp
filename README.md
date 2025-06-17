@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Home Staging App
+
+A modern web application that uses AI to stage home photos for real estate listings.
+
+## Features
+
+- **AI-Powered Staging**: Transform empty rooms into beautifully staged spaces
+- **Multiple Styles**: Modern, Traditional, Scandinavian, and more
+- **Subscription Plans**: Free, Basic ($15/mo), and Pro ($30/mo)
+- **User Authentication**: Google Sign-in and email/password
+- **Upload Limits**: Daily/monthly limits based on subscription tier
+- **Responsive Design**: Works on desktop and mobile
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: Firebase Firestore
+- **Authentication**: Firebase Auth
+- **Payments**: Stripe with Payment Links
+- **AI**: OpenAI DALL-E API
+- **Hosting**: Vercel (or similar)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18+
+- Firebase project
+- Stripe account
+- OpenAI API key
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Set up environment variables (copy `.env.example` to `.env.local`):
+   ```bash
+   cp .env.example .env.local
+   ```
 
-## Learn More
+4. Configure your environment variables in `.env.local`
 
-To learn more about Next.js, take a look at the following resources:
+5. Deploy Firestore rules:
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+1. Build the application:
+   ```bash
+   npm run build
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. Deploy to your hosting platform (Vercel recommended)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. Set up Stripe webhooks pointing to your production URL
+
+## Environment Variables
+
+See `.env.example` for all required environment variables.
+
+## License
+
+Private project - All rights reserved.

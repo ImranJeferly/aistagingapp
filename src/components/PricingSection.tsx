@@ -7,8 +7,16 @@ import WigglyLine from './WigglyLine';
 import { PRICING_PLANS } from '../services/pricingService';
 
 export default function PricingSection() {
-  const { isAuthenticated, user, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, user, userData, isLoading: authLoading } = useAuth();
+  
+  // Get user's current plan
+  const userCurrentPlan = userData?.plan || 'free';
   const handleButtonClick = async (planId: string) => {
+    // Check if button should be disabled
+    if (isPlanDisabled(planId)) {
+      return; // Do nothing if disabled
+    }
+
     // Check if auth is still loading
     if (authLoading) {
       console.log('Authentication still loading, please wait...');
@@ -34,17 +42,49 @@ export default function PricingSection() {
       console.error('Plan or payment link not found for:', planId);
       alert('Plan configuration error. Please try again or contact support.');
       return;
-    }
-
-    if (!user || !user.uid) {
-      console.error('User object or uid not found:', user);
+    }    if (!user || !user.uid || !user.email) {
+      console.error('User object, uid, or email not found:', user);
       alert('Please wait for authentication to complete, then try again.');
       return;
     }
 
-    // Redirect directly to Stripe Payment Link
-    console.log('Redirecting to payment link for plan:', planId);
-    window.location.href = selectedPlan.paymentLink;
+    // Create payment link URL with prefilled email
+    const paymentUrl = new URL(selectedPlan.paymentLink);
+    paymentUrl.searchParams.set('prefilled_email', user.email);
+      // Redirect directly to Stripe Payment Link with prefilled email
+    console.log('Redirecting to payment link for plan:', planId, 'with email:', user.email);
+    window.location.href = paymentUrl.toString();
+  };
+
+  // Function to determine if a plan button should be disabled
+  const isPlanDisabled = (planId: string) => {
+    if (!isAuthenticated) return false; // Show all options for non-authenticated users
+    
+    switch (userCurrentPlan) {
+      case 'basic':
+        return planId === 'free' || planId === 'basic'; // Disable free and basic
+      case 'pro':
+        return true; // Disable all buttons
+      default: // 'free'
+        return false; // Enable all buttons
+    }
+  };
+
+  // Function to get button text based on user's plan
+  const getButtonText = (planId: string) => {
+    if (!isAuthenticated) {
+      return planId === 'free' ? 'Sign Up Free' : `Choose ${PRICING_PLANS.find(p => p.id === planId)?.name}`;
+    }
+
+    if (userCurrentPlan === planId) {
+      return 'Current Plan';
+    }
+
+    if (isPlanDisabled(planId)) {
+      return 'Not Available';
+    }
+
+    return planId === 'free' ? 'Start Free' : `Upgrade to ${PRICING_PLANS.find(p => p.id === planId)?.name}`;
   };
 
   return (
@@ -84,16 +124,26 @@ export default function PricingSection() {
           {PRICING_PLANS.map((plan, index) => (            <div 
               key={plan.id}
               className={`relative bg-white rounded-3xl shadow-2xl p-6 md:p-8 text-center flex flex-col ${
-                plan.recommended ? 'ring-4 ring-yellow-400 scale-105' : ''
+                userCurrentPlan === plan.id && isAuthenticated
+                  ? 'ring-4 ring-green-500 scale-105'
+                  : plan.recommended
+                  ? 'ring-4 ring-yellow-400 scale-105'
+                  : ''
               }`}
             >
-              {plan.recommended && (
+              {userCurrentPlan === plan.id && isAuthenticated ? (
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-green-500 text-white px-6 py-2 rounded-full text-sm font-bold">
+                    Current Plan
+                  </span>
+                </div>
+              ) : plan.recommended ? (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 px-6 py-2 rounded-full text-sm font-bold">
                     Most Popular
                   </span>
                 </div>
-              )}
+              ) : null}
 
               {/* Plan Name */}
               <h3 className="text-2xl font-bold text-gray-900 mb-4">{plan.name}</h3>
@@ -140,21 +190,29 @@ export default function PricingSection() {
               <div className="mt-auto">
                 <button 
                   className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-200 ${
-                    plan.recommended
+                    isPlanDisabled(plan.id)
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : userCurrentPlan === plan.id
+                      ? 'bg-green-600 text-white'
+                      : plan.recommended
                       ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 hover:from-yellow-500 hover:to-orange-500'
                       : 'bg-gray-900 text-white hover:bg-gray-800'
                   }`}
-                  onClick={() => handleButtonClick(plan.id)}
+                  onClick={() => !isPlanDisabled(plan.id) && handleButtonClick(plan.id)}
+                  disabled={isPlanDisabled(plan.id)}
                 >
-                  {plan.id === 'free' 
-                    ? (isAuthenticated ? 'Start Free' : 'Sign Up Free')
-                    : `Choose ${plan.name}`
-                  }
+                  {getButtonText(plan.id)}
                 </button>
 
-                {plan.id === 'free' && (
+                {plan.id === 'free' && !isAuthenticated && (
                   <p className="text-xs text-gray-500 mt-3">
-                    {isAuthenticated ? '' : 'No credit card required'}
+                    No credit card required
+                  </p>
+                )}
+                
+                {userCurrentPlan === plan.id && (
+                  <p className="text-xs text-green-600 mt-2 font-medium">
+                    ✓ Active Plan
                   </p>
                 )}
               </div>
