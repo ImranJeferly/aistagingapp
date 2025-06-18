@@ -1,5 +1,6 @@
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
+import Breadcrumbs from '../../components/Breadcrumbs';
 
 const CheckIcon = ({ className }: { className?: string }) => (
   <svg className={className || "h-5 w-5 text-green-500"} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -43,9 +44,9 @@ const features = [
 export default function FeaturesPage() {
   return (
     <div className="min-h-screen bg-white">
-      <Navigation />
-      <main className="pt-20">
+      <Navigation />      <main className="pt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Breadcrumbs items={[{ label: 'Features', href: '/features' }]} />
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">

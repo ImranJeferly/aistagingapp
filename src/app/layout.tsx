@@ -142,6 +142,36 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#3b82f6" />
+
+        {/* Organization Structured Data for Google Sitelinks */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "AI Staging App",
+              "url": process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com",
+              "logo": `${process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com"}/logo.png`,
+              "description": "Professional AI home staging for real estate. Transform empty rooms into stunning spaces in seconds.",
+              "sameAs": [
+                // Add your social media URLs here when available
+              ],
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                  "@type": "EntryPoint",
+                  "urlTemplate": `${process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com"}/upload`
+                },
+                "query-input": "required name=search_term_string"
+              },
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com"
+              }
+            })
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
