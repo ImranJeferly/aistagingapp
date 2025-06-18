@@ -103,13 +103,11 @@ export default function Navigation() {
         <span className="text-gray-900 font-bold text-lg sm:text-xl tracking-wide">
           AI Staging App
         </span>
-      </Link>
-
-      {/* Desktop Navigation Links */}
+      </Link>      {/* Desktop Navigation Links */}
       <nav className="hidden lg:flex items-center space-x-8 xl:space-x-12">
-        <NavLink href="#features">Gallery</NavLink>
+        <NavLink href="/features">Features</NavLink>
         <NavLink href="/upload">Upload</NavLink>
-        <NavLink href="#pricing">Pricing</NavLink>
+        <NavLink href="/pricing">Pricing</NavLink>
         <NavLink href="#faq">FAQ</NavLink>
       </nav>
 
@@ -262,15 +260,14 @@ export default function Navigation() {
               </svg>
             </button>
           </div>          {/* Mobile Menu Content */}
-          <div className="flex-1 overflow-y-auto px-6 py-8">
-            {/* Navigation Links */}
+          <div className="flex-1 overflow-y-auto px-6 py-8">            {/* Navigation Links */}
             <nav className="space-y-3 mb-8">
               <Link 
-                href="#features" 
+                href="/features" 
                 className="block py-4 px-4 text-gray-700 hover:text-purple-600 hover:bg-gray-50 rounded-lg transition-all duration-200 font-medium text-lg"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Gallery
+                Features
               </Link>
               <Link 
                 href="/upload" 
@@ -280,7 +277,7 @@ export default function Navigation() {
                 Upload
               </Link>
               <Link 
-                href="#pricing" 
+                href="/pricing" 
                 className="block py-4 px-4 text-gray-700 hover:text-purple-600 hover:bg-gray-50 rounded-lg transition-all duration-200 font-medium text-lg"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
@@ -293,7 +290,7 @@ export default function Navigation() {
               >
                 FAQ
               </Link>
-            </nav>            {/* Mobile User Section */}
+            </nav>{/* Mobile User Section */}
             {isAuthenticated ? (
               <div className="border-t border-gray-200 pt-6">
                 {/* User Info */}

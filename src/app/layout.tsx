@@ -15,14 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://aistagingapp.com'),
   title: {
-    default: "AI Staging App - Free AI Home Staging Tool for Real Estate",
+    default: "AI Staging App | Professional AI Home Staging for Real Estate",
     template: "%s | AI Staging App"
   },
-  description: "Transform empty rooms into stunning spaces with our free AI staging platform. Professional home staging in 30 seconds. Perfect for real estate agents, property managers, and homeowners. No design experience required.",
+  description: "Transform empty rooms into stunning spaces with AI. Professional home staging in 30 seconds. Free tier available for real estate agents, property managers, and homeowners.",
   keywords: [
     "AI staging",
-    "virtual staging",
+    "virtual staging", 
     "home staging",
     "real estate staging",
     "property staging",
@@ -56,23 +57,23 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com",
     siteName: "AI Staging App",
-    title: "AI Staging App - Free AI Home Staging Tool for Real Estate",
-    description: "Transform empty rooms into stunning spaces with our free AI staging platform. Professional home staging in 30 seconds for real estate agents and homeowners.",
+    title: "AI Staging App | Professional AI Home Staging for Real Estate",
+    description: "Transform empty rooms into stunning spaces with AI. Professional home staging in 30 seconds for real estate agents and property managers.",
     images: [
       {
-        url: "/og-image.png", // We'll need to create this
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "AI Staging App - Transform empty rooms with AI",
+        alt: "AI Staging App - Professional AI home staging platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Staging App - Free AI Home Staging Tool",
-    description: "Transform empty rooms into stunning spaces with AI staging. Professional results in 30 seconds. Perfect for real estate marketing.",
+    title: "AI Staging App | Professional AI Home Staging",
+    description: "Transform empty rooms into stunning spaces with AI. Professional home staging in 30 seconds for real estate marketing.",
     images: ["/og-image.png"],
-    creator: "@aistagingapp", // Update with your actual Twitter handle
+    creator: "@aistagingapp",
   },
   alternates: {
     canonical: process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com",
@@ -81,11 +82,21 @@ export const metadata: Metadata = {
   classification: "Real Estate Technology",
   icons: {
     icon: [
-      { url: "/logo.png" },
-      { url: "/favicon.ico" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    shortcut: "/favicon.ico",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/safari-pinned-tab.svg",
+        color: "#3b82f6",
+      },
+    ],
   },
   manifest: "/manifest.json", // We'll create this too
   verification: {
@@ -109,7 +120,10 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="AI Staging" />
         <meta name="format-detection" content="telephone=no" />
+        <meta name="msapplication-TileColor" content="#3b82f6" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
         
         {/* Preconnect to external domains for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -121,6 +135,13 @@ export default function RootLayout({
         
         {/* Canonical URL for SEO */}
         <link rel="canonical" href={process.env.NEXT_PUBLIC_APP_URL || "https://aistagingapp.com"} />
+        
+        {/* Additional favicons and icons for better browser support */}
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#3b82f6" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

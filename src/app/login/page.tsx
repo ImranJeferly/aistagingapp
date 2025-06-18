@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Metadata } from 'next';
+
+// Note: This metadata won't work in client components, so we'll need to create a layout.tsx for the login page
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

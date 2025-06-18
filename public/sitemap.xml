@@ -19,13 +19,36 @@
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
-  
-  <!-- Register page - medium priority -->
+    <!-- Register page - medium priority -->
   <url>
     <loc>https://aistagingapp.com/register</loc>
     <lastmod>2025-06-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
+  </url>
+
+  <!-- Pricing page - high priority -->
+  <url>
+    <loc>https://aistagingapp.com/pricing</loc>
+    <lastmod>2025-06-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Features page - high priority -->
+  <url>
+    <loc>https://aistagingapp.com/features</loc>
+    <lastmod>2025-06-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Upload page - high priority -->
+  <url>
+    <loc>https://aistagingapp.com/upload</loc>
+    <lastmod>2025-06-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
 
 </urlset>
