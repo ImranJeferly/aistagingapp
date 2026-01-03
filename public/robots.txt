@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /pricing
+Allow: /login
+Allow: /register
+
+# Block private pages
+Disallow: /upload
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://aistagingapp.com/sitemap.xml
+
+# Crawl delay (optional)
+Crawl-delay: 1
