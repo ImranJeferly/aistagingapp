@@ -117,7 +117,7 @@ export default function UserDropdown({
                   router.push('/pricing');
                   setIsOpen(false);
                 }}
-                className="mt-4 w-full py-2 bg-[#FF90E8] text-black font-bold text-sm rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all"
+                className="mt-4 w-full py-2 bg-[#FF90E8] text-black font-bold text-sm rounded-md border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all"
               >
                 Upgrade to Pro
               </button>

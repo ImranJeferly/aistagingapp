@@ -25,7 +25,7 @@ export default function VirtualRenovation() {
         {/* Controls Section */}
         <div className="lg:col-span-1 space-y-8">
           <div>
-            <div className="inline-block px-4 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-bold mb-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
+            <div className="inline-block px-4 py-1 bg-green-100 text-green-700 rounded-md text-sm font-bold mb-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-1">
               Pro Feature
             </div>
             <h2 className="font-brand text-5xl font-bold text-black mb-4 leading-tight">

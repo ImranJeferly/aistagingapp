@@ -52,7 +52,7 @@ export default function UpscaleFeature() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         {/* Text Content */}
         <div>
-          <div className="inline-block px-4 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold mb-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">
+          <div className="inline-block px-4 py-1 bg-purple-100 text-purple-700 rounded-md text-sm font-bold mb-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">
             New Feature
           </div>
           <h2 className="font-brand text-5xl font-bold text-black mb-6 leading-tight">
@@ -76,7 +76,7 @@ export default function UpscaleFeature() {
                 transition={{ delay: i * 0.1 }}
                 className="flex items-center text-gray-800 font-bold"
               >
-                <span className="w-8 h-8 rounded-lg bg-green-400 text-black border-2 border-black flex items-center justify-center mr-4 text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">✓</span>
+                <span className="w-8 h-8 rounded-md bg-green-400 text-black border-2 border-black flex items-center justify-center mr-4 text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">✓</span>
                 {item}
               </motion.li>
             ))}

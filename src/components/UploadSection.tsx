@@ -77,7 +77,7 @@ export default function UploadSection() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-black font-brand text-[#1a1a1a] mb-6">
-            Stage Your <span className="inline-block bg-[#FF90E8] px-4 py-1 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-2">Home Images</span>
+            Stage Your <span className="inline-block bg-[#FF90E8] px-4 py-1 rounded-md border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-2">Home Images</span>
           </h2>
           <p className="text-lg md:text-xl text-gray-800 max-w-3xl mx-auto font-medium">
             Upload your empty room photos and get professionally staged images in seconds

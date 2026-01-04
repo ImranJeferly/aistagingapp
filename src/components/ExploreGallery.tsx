@@ -66,7 +66,7 @@ export default function ExploreGallery() {
   return (
     <div className="w-full max-w-7xl mx-auto">
       <div className="text-center mb-16">
-        <div className="inline-block px-4 py-1 bg-pink-100 text-pink-700 rounded-lg text-sm font-bold mb-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-2">
+        <div className="inline-block px-4 py-1 bg-pink-100 text-pink-700 rounded-md text-sm font-bold mb-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-2">
           Community Gallery
         </div>
         <h2 className="font-brand text-5xl font-bold text-black mb-6">
@@ -107,7 +107,7 @@ export default function ExploreGallery() {
               </div>
 
               {/* Style Tag */}
-              <div className="absolute top-4 left-4 bg-white px-3 py-1 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-xs font-bold font-brand">
+              <div className="absolute top-4 left-4 bg-white px-3 py-1 rounded-md border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-xs font-bold font-brand">
                 {item.style}
               </div>
             </div>

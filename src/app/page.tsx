@@ -233,7 +233,7 @@ export default function Home() {
               </div>
               <br />
               <div className="mt-2 flex flex-wrap justify-center items-center gap-3">
-                <span ref={freeTagRef} className="bg-[#FACC15] text-black px-4 py-1 rounded-lg transform -rotate-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] opacity-0">
+                <span ref={freeTagRef} className="bg-[#FACC15] text-black px-4 py-1 rounded-md transform -rotate-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] opacity-0">
                   100% Free
                 </span>
                 <span ref={appNameRef} className="opacity-0">AI Staging App</span>

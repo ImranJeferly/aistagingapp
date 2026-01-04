@@ -173,7 +173,7 @@ export default function ExamplesSection() {
           className="text-center mb-12 md:mb-16"
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-black font-brand text-[#1a1a1a] mb-4">
-            See the <span className="inline-block bg-[#FF90E8] px-4 py-1 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">Transformation</span>
+            See the <span className="inline-block bg-[#FF90E8] px-4 py-1 rounded-md border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">Transformation</span>
           </h2>
           <p className="text-lg md:text-xl text-gray-800 max-w-3xl mx-auto font-medium">
             Transform empty spaces into stunning, furnished rooms that help your listings sell faster
