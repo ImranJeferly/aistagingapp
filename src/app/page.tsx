@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../contexts/AuthContext';
 import gsap from 'gsap';
 import Navigation from '../components/Navigation';
 import Button from '../components/Button';
@@ -55,6 +57,8 @@ const jsonLd = {
 };
 
 export default function Home() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
   const badgeRef = useRef(null);
   const word1Ref = useRef(null);
   const word2Ref = useRef(null);
@@ -63,6 +67,12 @@ export default function Home() {
   const appNameRef = useRef(null);
   const subtitleRef = useRef(null);
   const ctaRef = useRef(null);
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push('/upload');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
     const tl = gsap.timeline({ defaults: { ease: "back.out(1.7)", duration: 1 } });
