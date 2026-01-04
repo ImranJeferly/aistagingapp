@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import FloatingElement from './FloatingElement';
+// import FloatingElement from './FloatingElement';
 // import Floating3DModel from './Floating3DModel';
 import WigglyLine from './WigglyLine';
 

@@ -5,7 +5,7 @@ import gsap from 'gsap';
 import Navigation from '../components/Navigation';
 import Button from '../components/Button';
 import AuthButton from '../components/AuthButton';
-import FloatingElement from '../components/FloatingElement';
+// import FloatingElement from '../components/FloatingElement';
 // import Floating3DModel from '../components/Floating3DModel';
 import Badge from '../components/Badge';
 import WigglyLine from '../components/WigglyLine';

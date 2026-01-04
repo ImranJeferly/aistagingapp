@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import FloatingElement from './FloatingElement';
+// import FloatingElement from './FloatingElement';
 // import Floating3DModel from './Floating3DModel';
 import WigglyLine from './WigglyLine';
 

@@ -60,14 +60,14 @@ export default function UploadSection() {
         rotation={[0, 0, 0]}
       /> */}
 
-      <FloatingElement 
+      {/* <FloatingElement 
         position={{ bottom: '20%', right: '8%' }}
         size="md"
         imageSrc="/tallplant.png"
         imageAlt="AI powered virtual home staging increases property sales for real estate professionals"
         animationDelay="1.5s"
         rotation="20deg"
-      />
+      /> */}
       <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-8">        {/* Section Header */}
         <motion.div 
           initial={{ opacity: 0, y: 30 }}

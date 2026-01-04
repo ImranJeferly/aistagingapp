@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import AuthGuard from '../../components/AuthGuard';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
-import FloatingElement from '../../components/FloatingElement';
+// import FloatingElement from '../../components/FloatingElement';
 import { useState, useEffect, Suspense } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
@@ -326,7 +326,7 @@ function UploadPageContent() {
   return (
     <AuthGuard>      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-gray-100 overflow-hidden relative">
         <Navigation />          {/* Floating Furniture Elements - Visible but safely positioned */}
-        <FloatingElement 
+        {/* <FloatingElement 
           position={{ top: '10rem', left: '3rem' }}
           size="sm"
           imageSrc="/lamp.png"
@@ -361,7 +361,7 @@ function UploadPageContent() {
           animationDelay="4.2s"
           blur={true}
           rotation="10deg"
-        /><main className="pt-20 pb-16">
+        /> */}<main className="pt-20 pb-16">
           <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.20)-theme(spacing.16))] p-4">
             <div className="w-full max-w-4xl">              {/* Error Display */}
               {error && (

@@ -108,14 +108,14 @@ export default function PricingSection() {
         rotation={[0.2, 0.5, 0]}
       /> */}
 
-      <FloatingElement 
+      {/* <FloatingElement 
         position={{ bottom: '15%', right: '8%' }}
         size="lg"
         imageSrc="/officechair.png"
         imageAlt="Professional virtual home staging software"
         animationDelay="1.2s"
         rotation="-12deg"
-      />
+      /> */}
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8">
         {/* Section Header */}
