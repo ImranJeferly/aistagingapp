@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import FloatingElement from './FloatingElement';
-import Floating3DModel from './Floating3DModel';
+// import Floating3DModel from './Floating3DModel';
 import WigglyLine from './WigglyLine';
 
 interface RoomType {
@@ -180,22 +180,22 @@ export default function ImageViewer() {
   };
   return (
     <section className="relative py-16 md:py-20 bg-white overflow-hidden">      {/* Floating Lamp */}
-      <Floating3DModel 
+      {/* <Floating3DModel 
         position={{ top: '10%', right: '8%' }}
         size="md"
         modelPath="/models/stool.glb"
         rotation={[0.1, -0.2, 0.26]}
         scale={2.5}
-      />
+      /> */}
 
       {/* Floating Cabinet */}
-      <Floating3DModel 
+      {/* <Floating3DModel 
         position={{ bottom: '10%', left: '8%' }}
         size="lg"
         modelPath="/models/cabinet.glb"
         rotation={[0.1, 0.4, 0]}
         scale={3}
-      />
+      /> */}
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8">        {/* Section Header */}
         <motion.div 

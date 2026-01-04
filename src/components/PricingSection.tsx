@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import FloatingElement from './FloatingElement';
-import Floating3DModel from './Floating3DModel';
+// import Floating3DModel from './Floating3DModel';
 import WigglyLine from './WigglyLine';
 import { PRICING_PLANS } from '../services/pricingService';
 
@@ -92,7 +92,7 @@ export default function PricingSection() {
   return (
     <section id="pricing" className="relative py-20 bg-[#E0F2FE] overflow-hidden">
       {/* Floating Elements */}
-      <Floating3DModel 
+      {/* <Floating3DModel 
         modelPath="/models/cactus2.glb"
         position={{ top: '15%', left: '8%' }}
         size="lg"
@@ -104,7 +104,7 @@ export default function PricingSection() {
         position={{ top: '5%', left: '2%' }}
         size="lg"
         rotation={[0.2, 0.5, 0]}
-      />
+      /> */}
 
       <FloatingElement 
         position={{ bottom: '15%', right: '8%' }}

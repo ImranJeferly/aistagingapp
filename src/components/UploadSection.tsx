@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import FloatingElement from './FloatingElement';
-import Floating3DModel from './Floating3DModel';
+// import Floating3DModel from './Floating3DModel';
 import WigglyLine from './WigglyLine';
 import AuthButton from './AuthButton';
 
@@ -45,7 +45,7 @@ export default function UploadSection() {
 
   return (
     <section className="relative py-16 md:py-20 bg-blue-50 overflow-hidden">      {/* Floating Elements */}
-      <Floating3DModel 
+      {/* <Floating3DModel 
         modelPath="/models/sofa.glb"
         position={{ top: '15%', right: '5%' }}
         size="xxl"
@@ -58,7 +58,7 @@ export default function UploadSection() {
         position={{ top: '60%', left: '8%' }}
         size="lg"
         rotation={[0, 0, 0]}
-      />
+      /> */}
 
       <FloatingElement 
         position={{ bottom: '20%', right: '8%' }}

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FloatingElement from './FloatingElement';
-import Floating3DModel from './Floating3DModel';
+// import Floating3DModel from './Floating3DModel';
 import WigglyLine from './WigglyLine';
 
 interface FAQItem {
@@ -108,7 +108,7 @@ export default function FAQSection() {
   return (
     <section className="relative py-20 bg-[#FDF4FF] overflow-hidden">
       {/* Floating Elements */}
-      <Floating3DModel 
+      {/* <Floating3DModel 
         modelPath="/models/chair2.glb"
         position={{ top: '10%', left: '5%' }}
         size="lg"
@@ -120,7 +120,7 @@ export default function FAQSection() {
         position={{ top: '70%', right: '8%' }}
         size="lg"
         rotation={[0, -0.5, 0]}
-      />
+      /> */}
 
       {/* Wiggly Lines */}
       <WigglyLine 

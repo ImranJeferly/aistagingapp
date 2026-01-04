@@ -6,7 +6,7 @@ import Navigation from '../components/Navigation';
 import Button from '../components/Button';
 import AuthButton from '../components/AuthButton';
 import FloatingElement from '../components/FloatingElement';
-import Floating3DModel from '../components/Floating3DModel';
+// import Floating3DModel from '../components/Floating3DModel';
 import Badge from '../components/Badge';
 import WigglyLine from '../components/WigglyLine';
 import ImageViewer from '../components/ImageViewer';
@@ -128,7 +128,7 @@ export default function Home() {
         <div className="relative pt-24 min-h-screen">
 
           {/* Floating 3D Objects - positioned relative to hero section */}
-          <Floating3DModel 
+          {/* <Floating3DModel 
             position={{ top: '8rem', left: '8rem' }}
             size="md"
             modelPath="/models/lamp.glb"
@@ -157,7 +157,7 @@ export default function Home() {
             size="lg"
             modelPath="/models/cactus.glb"
             scale={2}
-          />
+          /> */}
 
           {/* <Floating3DModel 
             position={{ top: '50%', right: '8%' }}
