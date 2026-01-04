@@ -62,9 +62,11 @@ export default function PricingSection() {
   const isPlanDisabled = (planId: string) => {
     if (!isAuthenticated) return false; // Show all options for non-authenticated users
     
+    if (userCurrentPlan === planId) return true; // Always disable current plan
+
     switch (userCurrentPlan) {
       case 'basic':
-        return planId === 'free' || planId === 'basic'; // Disable free and basic
+        return planId === 'free'; // Disable free and basic
       case 'pro':
         return true; // Disable all buttons
       default: // 'free'
@@ -226,18 +228,6 @@ export default function PricingSection() {
                 >
                   {getButtonText(plan.id)}
                 </button>
-
-                {plan.id === 'free' && !isAuthenticated && (
-                  <p className="text-xs text-gray-500 mt-3 font-medium">
-                    No credit card required
-                  </p>
-                )}
-                
-                {userCurrentPlan === plan.id && (
-                  <p className="text-xs text-green-600 mt-2 font-bold">
-                    ✓ Active Plan
-                  </p>
-                )}
               </div>
             </motion.div>
           ))}
