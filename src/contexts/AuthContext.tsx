@@ -33,6 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Mark session as active to track internal navigation
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('app_session_active', 'true');
+    }
+  }, []);
+
   useEffect(() => {
     let unsubscribeSnapshot: (() => void) | null = null;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import gsap from 'gsap';
@@ -67,12 +67,23 @@ export default function Home() {
   const appNameRef = useRef(null);
   const subtitleRef = useRef(null);
   const ctaRef = useRef(null);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    // Check if this is the first visit in this session (direct entry)
+    // If app_session_active is NOT set, it means we just landed here.
+    const hasVisited = sessionStorage.getItem('app_session_active');
+    if (!hasVisited) {
+      setIsFirstVisit(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Only redirect if authenticated AND it's the first visit (direct entry)
+    if (!isLoading && isAuthenticated && isFirstVisit) {
       router.push('/upload');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, isFirstVisit]);
 
   useEffect(() => {
     const tl = gsap.timeline({ defaults: { ease: "back.out(1.7)", duration: 1 } });
