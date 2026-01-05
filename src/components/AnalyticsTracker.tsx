@@ -39,8 +39,22 @@ export default function AnalyticsTracker() {
       })
       .then(res => {
         if (!res.ok) {
+          // If 500 (Server Config Error), do NOT retry. The server is broken.
+          // We leave the storage key 'true' so we don't spam requests.
+          if (res.status === 500) {
+             console.error('📊 Analytics disabled: Server configuration missing (check FIREBASE_PRIVATE_KEY)');
+             return;
+          }
+
           console.warn('📊 Tracking failed, retry scheduled for next visit:', res.status);
-          // If server failed, remove the flag so we can try again
+          // If other error (network/timeout)rage key 'true' so we don't spam requests.
+          if (res.status === 500) {
+             console.error('📊 Analytics disabled: Server configuration missing (check FIREBASE_PRIVATE_KEY)');
+             return;
+          }
+
+          console.warn('📊 Tracking failed, retry scheduled for next visit:', res.status);
+          // If other error (network/timeout), remove the flag so we can try again
           localStorage.removeItem(storageKey);
         } else {
              console.log('📊 Tracking success');
