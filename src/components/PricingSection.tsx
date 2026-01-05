@@ -92,7 +92,7 @@ export default function PricingSection() {
   };
 
   return (
-    <section id="pricing" className="relative py-20 bg-[#E0F2FE] overflow-hidden">
+    <section id="pricing" className="relative py-20 overflow-hidden">
       {/* Floating Elements */}
       {/* <Floating3DModel 
         modelPath="/models/cactus2.glb"

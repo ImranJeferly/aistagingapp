@@ -4,9 +4,9 @@ import Footer from '../../components/Footer';
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+    <div className="min-h-screen bg-[#E0F2FE]">
       <Navigation />
-      <main className="pt-30">
+      <main className="pt-32">
         <div className="">
           
           <PricingSection />

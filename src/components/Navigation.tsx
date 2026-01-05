@@ -130,7 +130,7 @@ export default function Navigation() {
         showPromo && pathname !== '/upload' && pathname !== '/profile' && !isMobileMenuOpen ? 'top-11' : 'top-0'
       } ${
         isScrolled 
-          ? 'bg-[#FFFCF5]/80 backdrop-blur-md border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4' 
+          ? `${pathname === '/pricing' ? 'bg-[#E0F2FE]/90 border-blue-200' : 'bg-[#FFFCF5]/80 border-gray-200'} backdrop-blur-md border-b px-4 sm:px-6 py-3 sm:py-4`
           : 'bg-transparent border-b border-transparent px-4 sm:px-8 md:px-12 py-6 sm:py-8'
       }`}>      {/* Logo */}
       <Link href="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity relative z-[60]">
