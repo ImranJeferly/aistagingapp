@@ -8,8 +8,9 @@ service cloud.firestore {
       // Users collection - users can only read/write their own user document
     // PLUS server-side access for webhooks (plan upgrades)
     match /users/{userId} {
-      // User access - users can only access their own data
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // User access - users can only access their own data, Admin can read all
+      allow read: if (request.auth != null && request.auth.uid == userId) || (request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com');
+      allow write: if request.auth != null && request.auth.uid == userId;
       
       // Server-side admin access for webhooks (for plan upgrades)
       // This allows server-side functions to update user plans
@@ -24,7 +25,7 @@ service cloud.firestore {
       
       allow update: if request.auth != null 
                    && request.auth.uid == userId
-                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstName', 'lastName', 'displayName', 'photoURL', 'updatedAt', 'plan']);
+                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstName', 'lastName', 'displayName', 'photoURL', 'updatedAt', 'plan', 'lastActive']);
       
       // User uploads subcollection - users can only access their own uploads
       match /uploads/{uploadId} {

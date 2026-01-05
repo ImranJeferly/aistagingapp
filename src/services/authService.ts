@@ -31,6 +31,7 @@ export interface UserData {
   ipRestricted?: boolean;
   createdAt: any;
   updatedAt: any;
+  lastActive?: any;
 }
 
 export interface RegisterData {
@@ -102,6 +103,7 @@ export const createUserDocument = async (user: User, additionalData?: any): Prom
         plan: 'free', // Default to free tier for new users
         createdAt,
         updatedAt,
+        lastActive: createdAt, // Initial lastActive is same as createdAt
         ...additionalData
       };
       
@@ -143,10 +145,18 @@ export const createUserDocument = async (user: User, additionalData?: any): Prom
         Object.assign(updates, additionalData);
       }
 
+      // Always update lastActive to track user activity on login/refresh
+      updates.lastActive = serverTimestamp();
+
       // 4. Apply updates if any
       if (Object.keys(updates).length > 0) {
-        console.log('Updating user document with missing/additional data');
-        updates.updatedAt = serverTimestamp();
+        console.log('Updating user document with missing/additional data or lastActive');
+        // Only update updatedAt if we are changing actual data other than lastActive
+        // (This check handles the fact that we just added lastActive to updates)
+        const effectiveUpdates = Object.keys(updates).length;
+        if (effectiveUpdates > 1) { // More than just lastActive
+            updates.updatedAt = serverTimestamp();
+        }
         await setDoc(userRef, updates, { merge: true });
       } else {
         console.log('User document already exists and is up to date');
