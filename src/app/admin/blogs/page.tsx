@@ -79,9 +79,15 @@ export default function BlogsList() {
                     Delete
                   </button>
                   <Link 
+                    href={`/admin/blogs/${blog.id}`}
+                    className="p-2 text-blue-600 hover:bg-blue-50 border-2 border-transparent hover:border-blue-200 rounded transition-colors"
+                  >
+                    Edit
+                  </Link>
+                  <Link 
                     href={`/blogs/${blog.slug}`} 
                     target="_blank"
-                    className="p-2 text-blue-600 hover:bg-blue-50 border-2 border-transparent hover:border-blue-200 rounded transition-colors"
+                    className="p-2 text-gray-600 hover:bg-gray-50 border-2 border-transparent hover:border-gray-200 rounded transition-colors"
                   >
                     View
                   </Link>
