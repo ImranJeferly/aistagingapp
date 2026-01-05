@@ -100,7 +100,7 @@ export default function Navigation() {
       {/* Promo Banner */}
       <div 
         className={`fixed top-0 left-0 right-0 z-[60] bg-[#FF90E8] border-b-2 border-black text-black overflow-hidden py-2.5 transition-transform duration-500 ease-in-out ${
-          showPromo && pathname !== '/upload' && pathname !== '/profile' ? 'translate-y-0' : '-translate-y-full'
+          showPromo && pathname !== '/upload' && pathname !== '/profile' && !isMobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
         <div className="flex items-center w-full">
@@ -124,7 +124,7 @@ export default function Navigation() {
       </div>
 
       <header className={`fixed left-0 right-0 z-50 flex items-center justify-between transition-all duration-500 ease-in-out ${
-        showPromo && pathname !== '/upload' && pathname !== '/profile' ? 'top-11' : 'top-0'
+        showPromo && pathname !== '/upload' && pathname !== '/profile' && !isMobileMenuOpen ? 'top-11' : 'top-0'
       } ${
         isScrolled 
           ? 'bg-[#FFFCF5]/80 backdrop-blur-md border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4' 
@@ -207,24 +207,24 @@ export default function Navigation() {
         />
       )}{/* Mobile Menu - Slide from right, full height and width */}
       <div className={`
-        lg:hidden fixed top-0 right-0 h-screen w-full bg-white shadow-2xl z-[999]
+        lg:hidden fixed top-0 right-0 h-screen w-full sm:w-[400px] bg-[#FFFCF5] border-l-2 border-black z-[999]
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
           {/* Mobile Menu Header - Fixed size regardless of scroll */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 min-h-[80px]">
+          <div className="flex items-center justify-between p-6 min-h-[80px] bg-[#FFFCF5]">
             <div className="flex items-center gap-3">
               <img 
                 src="/logo.png" 
                 alt="AI Staging App Logo" 
                 className="w-10 h-10 object-contain"
               />
-              <span className="text-gray-900 font-bold text-xl">AI Staging</span>
+              <span className="text-gray-900 font-bold text-xl tracking-wide">AI Staging App</span>
             </div>
             <button 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="p-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-200"
+              className="text-gray-900 p-2"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -232,52 +232,39 @@ export default function Navigation() {
             </button>
           </div>          {/* Mobile Menu Content */}
           <div className="flex-1 overflow-y-auto px-6 py-8">            {/* Navigation Links */}
-            <nav className="space-y-3 mb-8">
-              <Link 
-                href="/features" 
-                className="block py-4 px-4 text-gray-700 hover:text-purple-600 hover:bg-gray-50 rounded-lg transition-all duration-200 font-medium text-lg"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Features
-              </Link>
-              <Link 
-                href="/upload" 
-                className="block py-4 px-4 text-gray-700 hover:text-purple-600 hover:bg-gray-50 rounded-lg transition-all duration-200 font-medium text-lg"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Upload
-              </Link>
-              <Link 
-                href="/pricing" 
-                className="block py-4 px-4 text-gray-700 hover:text-purple-600 hover:bg-gray-50 rounded-lg transition-all duration-200 font-medium text-lg"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Pricing
-              </Link>
-              <Link 
-                href="#faq" 
-                className="block py-4 px-4 text-gray-700 hover:text-purple-600 hover:bg-gray-50 rounded-lg transition-all duration-200 font-medium text-lg"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                FAQ
-              </Link>
+            <nav className="space-y-4 mb-8">
+              {[
+                { href: '/features', label: 'Features' },
+                { href: '/upload', label: 'Upload' },
+                { href: '/pricing', label: 'Pricing' },
+                { href: '/#faq', label: 'FAQ' }
+              ].map((link) => (
+                <Link 
+                  key={link.href}
+                  href={link.href} 
+                  className="block py-3 px-4 text-black font-bold text-lg border-2 border-transparent hover:border-black hover:bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-lg transition-all duration-200"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </nav>{/* Mobile User Section */}
             {isAuthenticated ? (
-              <div className="border-t border-gray-200 pt-6">
+              <div className="pt-6">
                 {/* User Info */}
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-2">
-                    Hello, {userData?.firstName || user?.displayName?.split(' ')[0] || 'User'}
+                <div className="mb-6 p-4 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <div className="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wider">
+                    Signed in as {userData?.firstName || user?.displayName?.split(' ')[0] || 'User'}
                   </div>
                   
                   {/* Plan Display */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
+                      <div className={`w-3 h-3 rounded-full border border-black ${
                         userTier === 'free' ? 'bg-gray-400' : 
-                        userTier === 'basic' ? 'bg-yellow-400' : 'bg-purple-400'
+                        userTier === 'basic' ? 'bg-[#FACC15]' : 'bg-[#FF90E8]'
                       }`}></div>
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="font-black text-black">
                         {isLoading ? '...' : currentPlan.name} Plan
                       </span>
                     </div>
@@ -287,22 +274,23 @@ export default function Navigation() {
                           handleUpgradeClick();
                           setIsMobileMenuOpen(false);
                         }}
-                        className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 font-semibold rounded-full text-xs"
+                        className="px-3 py-1 bg-[#FACC15] text-black font-bold rounded-md border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-xs hover:-translate-y-0.5 transition-transform"
                       >
-                        Upgrade
+                        UPGRADE
                       </button>
                     )}
                   </div>
                   
                   {/* Upload Limit */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-2 text-sm font-bold border-t-2 border-gray-100 pt-3">
+                    <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 4v10a2 2 0 002 2h6a2 2 0 002-2V8M9 8h6" />
                     </svg>
-                    <span className={`font-medium ${isLimitReached ? 'text-red-600' : 'text-gray-600'}`}>
+                    <span className={`font-black ${isLimitReached ? 'text-red-600' : 'text-black'}`}>
                       {isLoading ? '...' : `${remainingUploads}/${totalUploads}`}
-                    </span>                    <span className="text-gray-500">
-                      {userTier === 'free' ? 'total' : 'this month'}
+                    </span>
+                    <span className="text-gray-500">
+                      uploads left {userTier === 'free' ? 'total' : 'this month'}
                     </span>
                   </div>
                 </div>
@@ -310,8 +298,15 @@ export default function Navigation() {
                 {/* Action Buttons */}
                 <div className="space-y-3">
                   <Link 
+                    href="/profile"
+                    className="block w-full py-3 px-4 bg-white text-black font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-gray-50 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <Link 
                     href="/upload"
-                    className="block w-full py-3 px-4 bg-[#8B5CF6] text-white font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                    className="block w-full py-3 px-4 bg-[#8B5CF6] text-white font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Upload Image
@@ -321,23 +316,23 @@ export default function Navigation() {
                       logout();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="block w-full py-3 px-4 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 text-center"
+                    className="block w-full py-3 px-4 bg-white text-black font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-gray-50 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                   >
-                    Logout
+                    Sign Out
                   </button>
                 </div>
               </div>            ) : (
-              <div className="border-t border-gray-200 pt-6 space-y-4">
+              <div className="pt-6 space-y-4">
                 <Link 
                   href="/login"
-                  className="block w-full py-4 px-4 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-all duration-200 text-center text-lg"
+                  className="block w-full py-3 px-4 bg-white text-black font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center text-lg hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link 
                   href="/register"
-                  className="block w-full py-4 px-4 bg-[#8B5CF6] text-white font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center text-lg hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                  className="block w-full py-3 px-4 bg-[#8B5CF6] text-white font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center text-lg hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Register
