@@ -9,14 +9,18 @@ const serviceAccount = {
 };
 
 if (!getApps().length) {
-  if (process.env.FIREBASE_PRIVATE_KEY) {
-    initializeApp({
-      credential: cert(serviceAccount)
-    });
+  if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+    try {
+      initializeApp({
+        credential: cert(serviceAccount)
+      });
+    } catch (error) {
+      console.error('Firebase Admin initialization failed:', error);
+    }
   } else {
     // Fallback for build time or when keys aren't present
     // This allows the app to build but runtime features needing admin will fail
-    console.warn('Firebase Admin not initialized: Missing FIREBASE_PRIVATE_KEY');
+    console.warn('Firebase Admin not initialized: Missing FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL');
   }
 }
 
