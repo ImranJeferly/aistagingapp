@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { createBlogPost, uploadBlogImage } from '@/services/blogService';
 import BlogEditor from '@/components/admin/BlogEditor';
 
