@@ -32,7 +32,7 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-white to-blue-100 flex flex-col items-center justify-center relative overflow-hidden perspective-1000">
+    <div className="min-h-screen bg-[#FFFCF5] flex flex-col items-center justify-center relative overflow-hidden perspective-1000">
       {/* Caution Tapes - Animated Individually to preserve Z-index stacking with static elements */}
       <div className="animate-tilt absolute inset-0 pointer-events-none preserve-3d" style={{ zIndex: 5 }}>
         <CautionTape 
