@@ -7,6 +7,11 @@ export default function AnalyticsTracker() {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Skip tracking for admin pages
+    if (pathname?.startsWith('/admin')) {
+      return;
+    }
+
     // Determine the current date in YYYY-MM-DD format (local time is fine for this)
     const today = new Date().toISOString().split('T')[0];
     // Changed key version to V2 to flush out any 'stuck' failed visit flags from before the fix

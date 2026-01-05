@@ -8,6 +8,7 @@ import { Eye } from 'lucide-react';
 export default function BlogsList() {
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState('all');
 
   useEffect(() => {
     loadBlogs();
@@ -24,6 +25,22 @@ export default function BlogsList() {
     }
   };
 
+  const filteredBlogs = blogs.filter(blog => {
+    if (dateFilter === 'all') return true;
+    
+    // Safety check for creation date
+    if (!blog.createdAt) return false;
+    
+    const blogDate = (blog.createdAt as any).seconds 
+      ? new Date((blog.createdAt as any).seconds * 1000)
+      : new Date(blog.createdAt);
+      
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - parseInt(dateFilter));
+    
+    return blogDate >= cutoff;
+  });
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this blog post?')) {
       await deleteBlogPost(id);
@@ -35,12 +52,25 @@ export default function BlogsList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-4xl font-black font-brand">Blog Posts</h1>
-        <Link 
-          href="/admin/blogs/new"
-          className="bg-[#A3E635] px-6 py-3 border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
-        >
-          Create New Post
-        </Link>
+        <div className="flex gap-4">
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="border-2 border-black rounded px-3 py-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold outline-none"
+          >
+            <option value="all">All Time</option>
+            <option value="1">Last 24 Hours</option>
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="90">Last 3 Months</option>
+          </select>
+          <Link 
+            href="/admin/blogs/new"
+            className="bg-[#A3E635] px-6 py-3 border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+          >
+            Create New Post
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -49,12 +79,14 @@ export default function BlogsList() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {blogs.length === 0 ? (
+          {filteredBlogs.length === 0 ? (
             <div className="bg-white p-8 border-2 border-dashed border-black text-center">
-              <p className="text-xl font-bold text-gray-400">No blog posts yet.</p>
+              <p className="text-xl font-bold text-gray-400">
+                {blogs.length === 0 ? "No blog posts yet." : "No posts found for this period."}
+              </p>
             </div>
           ) : (
-            blogs.map((blog) => (
+            filteredBlogs.map((blog) => (
               <div key={blog.id} className="bg-white p-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {blog.coverImage && (

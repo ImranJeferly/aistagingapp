@@ -11,6 +11,7 @@ export default function UsersPage() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
   
   // Sorting State
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -21,7 +22,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     filterAndSortUsers();
-  }, [users, searchQuery, planFilter, sortConfig]);
+  }, [users, searchQuery, planFilter, dateFilter, sortConfig]);
 
   async function loadUsers() {
     try {
@@ -71,7 +72,23 @@ export default function UsersPage() {
       result = result.filter(user => (user.plan || 'free') === planFilter);
     }
 
-    // 3. Sort
+    // 3. Filter by Date (Joined)
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const cutoff = new Date();
+      cutoff.setDate(now.getDate() - parseInt(dateFilter));
+      
+      result = result.filter(user => {
+        if (!user.createdAt) return false;
+        // Handle Firestore Timestamp or Date check
+        const userDate = (user.createdAt as any).seconds 
+          ? new Date((user.createdAt as any).seconds * 1000)
+          : new Date(user.createdAt);
+        return userDate >= cutoff;
+      });
+    }
+
+    // 4. Sort
     if (sortConfig) {
       result.sort((a: any, b: any) => {
         let aValue = a[sortConfig.key];
@@ -229,8 +246,8 @@ export default function UsersPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6 flex gap-4">
-        <div className="flex-1 relative">
+      <div className="bg-white p-4 border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6 grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div className="md:col-span-5 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
@@ -240,17 +257,32 @@ export default function UsersPage() {
             className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-black focus:ring-0 transition-colors"
           />
         </div>
-        <div className="relative w-48">
+        <div className="md:col-span-3 relative">
+           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+           <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-black focus:ring-0 transition-colors appearance-none bg-white font-medium"
+          >
+            <option value="all">Any Join Date</option>
+            <option value="1">Last 24 Hours</option>
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="90">Last 3 Months</option>
+          </select>
+        </div>
+        <div className="md:col-span-4 relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <select
             value={planFilter}
             onChange={(e) => setPlanFilter(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-black focus:ring-0 transition-colors appearance-none bg-white"
+            className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-black focus:ring-0 transition-colors appearance-none bg-white font-medium"
           >
             <option value="all">All Plans</option>
             <option value="free">Free</option>
             <option value="basic">Basic</option>
             <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise</option>
           </select>
         </div>
       </div>

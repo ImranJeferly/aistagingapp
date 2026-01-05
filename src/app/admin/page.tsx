@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, limit, where } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface PageStat {
@@ -15,16 +15,29 @@ export default function Dashboard() {
   const [stats, setStats] = useState<PageStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalTraffic, setTotalTraffic] = useState(0);
+  const [dateRange, setDateRange] = useState('30'); // Default 30 days
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [dateRange]);
 
   async function loadStats() {
+    setLoading(true);
     try {
-      // Get stats for the last 30 days
       const statsRef = collection(db, 'page_stats');
-      const q = query(statsRef, orderBy('date', 'desc'), limit(300));
+      let q;
+
+      if (dateRange === 'all') {
+        q = query(statsRef, orderBy('date', 'desc'), limit(1000));
+      } else {
+        // Calculate start date
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - parseInt(dateRange));
+        const dateString = startDate.toISOString().split('T')[0];
+        
+        q = query(statsRef, where('date', '>=', dateString), orderBy('date', 'desc'));
+      }
+
       const snapshot = await getDocs(q);
       
       const rawData = snapshot.docs.map(doc => ({
@@ -83,7 +96,30 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Header Stats */}
-      <h1 className="text-4xl font-black font-brand">DASHBOARD</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-black font-brand">DASHBOARD</h1>
+        <div className="flex gap-2 bg-white p-1 border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          {[
+            { label: '24h', value: '1' },
+            { label: '7 Days', value: '7' },
+            { label: '30 Days', value: '30' },
+            { label: '3 Months', value: '90' },
+            { label: 'All Time', value: 'all' },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setDateRange(option.value)}
+              className={`px-3 py-1 text-sm font-bold rounded transition-colors ${
+                dateRange === option.value 
+                  ? 'bg-black text-white' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-black text-white p-6 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
