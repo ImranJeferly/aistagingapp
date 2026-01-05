@@ -61,9 +61,12 @@ export default function Navigation() {
   };useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
-      setIsScrolled(scrollPosition > 100);
-      setShowPromo(scrollPosition < 10);
+      setIsScrolled(scrollPosition > 20);
+      setShowPromo(scrollPosition <= 20);
     };
+
+    // Initial check
+    handleScroll();
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
