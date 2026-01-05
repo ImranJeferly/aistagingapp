@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getBlogPosts, BlogPost, deleteBlogPost } from '@/services/blogService';
+import { Eye } from 'lucide-react';
 
 export default function BlogsList() {
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
@@ -67,6 +68,10 @@ export default function BlogsList() {
                       </span>
                       <span className="text-xs text-gray-500 py-1">
                         /blogs/{blog.slug}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-gray-500 py-1 ml-2">
+                        <Eye size={14} />
+                        {blog.views || 0}
                       </span>
                     </div>
                   </div>

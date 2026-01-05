@@ -31,6 +31,7 @@ export interface BlogPost {
   createdAt?: any;
   updatedAt?: any;
   authorId?: string;
+  views?: number;
 }
 
 const COLLECTION_NAME = 'blogs';
@@ -60,6 +61,7 @@ export const deleteBlogImage = async (imageUrl: string) => {
 export const createBlogPost = async (data: Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>) => {
   const docRef = await addDoc(collection(db, COLLECTION_NAME), {
     ...data,
+    views: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     publishedAt: data.published ? serverTimestamp() : null
