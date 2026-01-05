@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBlogPost, uploadBlogImage } from '../../../services/blogService';
-import { useAuth } from '../../../contexts/AuthContext';
+import { createBlogPost, uploadBlogImage } from '@/services/blogService';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function NewBlogPage() {
   const router = useRouter();

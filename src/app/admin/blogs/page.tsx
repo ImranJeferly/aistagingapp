@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getBlogPosts, BlogPost, deleteBlogPost } from '../../../services/blogService';
+import { getBlogPosts, BlogPost, deleteBlogPost } from '@/services/blogService';
 
 export default function BlogsList() {
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
