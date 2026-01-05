@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBlogPost, uploadBlogImage } from '@/services/blogService';
-import { useAuth } from '@/contexts/AuthContext';
+import BlogEditor from '@/components/admin/BlogEditor';
 
 export default function NewBlogPage() {
   const router = useRouter();
@@ -92,14 +92,11 @@ export default function NewBlogPage() {
 
             <div>
               <label className="block text-lg font-bold mb-2">Content</label>
-              <textarea
+              <BlogEditor
                 value={formData.content}
-                onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                className="w-full h-96 px-4 py-3 border-2 border-black rounded-lg focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-shadow font-mono"
-                placeholder="Write your blog content here (Markdown supported)..."
-                required
+                onChange={(content) => setFormData(prev => ({ ...prev, content }))}
               />
-              <p className="text-sm text-gray-500 mt-2">Use Markdown for formatting.</p>
+              <p className="text-sm text-gray-500 mt-2">Use the toolbar to format your post.</p>
             </div>
           </div>
 

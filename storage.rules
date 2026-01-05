@@ -13,7 +13,7 @@ service firebase.storage {
 
     // Admin blog uploads
     match /blogs/{allPaths=**} {
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com';
     }
   }
 }
