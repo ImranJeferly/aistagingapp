@@ -92,31 +92,25 @@ export default function UpscaleFeature() {
         >
           {/* Layer 1: After Image (Right Side / Background) */}
           {/* This layer is fully visible, but covered by Layer 2 on the left */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900 to-blue-900">
-             {/* Simulated High Res Pattern */}
-             <div className="absolute inset-0 opacity-30" 
-                  style={{ 
-                    backgroundImage: 'radial-gradient(circle at center, #fff 1px, transparent 1px)',
-                    backgroundSize: '4px 4px'
-                  }}>
-             </div>
+          <div className="absolute inset-0">
+             <img 
+               src="/high-quality.png" 
+               alt="High Quality" 
+               className="w-full h-full object-cover"
+             />
           </div>
 
           {/* Layer 2: Before Image (Left Side / Foreground) */}
           {/* This layer is clipped based on slider position */}
           <div 
-            className="absolute inset-0 bg-gray-200 border-r-2 border-white"
+            className="absolute inset-0 border-r-2 border-white"
             style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
           >
-             {/* Simulated Low Res Pattern */}
-             <div className="absolute inset-0 opacity-50" 
-                  style={{ 
-                    backgroundImage: 'repeating-linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), repeating-linear-gradient(45deg, #ccc 25%, #eee 25%, #eee 75%, #ccc 75%, #ccc)',
-                    backgroundPosition: '0 0, 10px 10px',
-                    backgroundSize: '20px 20px',
-                    filter: 'blur(2px)'
-                  }}>
-             </div>
+             <img 
+               src="/low-quality.png" 
+               alt="Low Quality" 
+               className="w-full h-full object-cover"
+             />
           </div>
 
           {/* Labels - Always Visible */}

@@ -184,9 +184,9 @@ export default function FeaturesPage() {
           </section>
 
           {/* Virtual Renovation Section */}
-          <section className="mb-32 bg-white rounded-[3rem] border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 md:p-12 relative overflow-hidden">
+          {/* <section className="mb-32 bg-white rounded-[3rem] border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 md:p-12 relative overflow-hidden">
             <VirtualRenovation />
-          </section>
+          </section> */}
 
           {/* Benefits Section */}
           <div className="bg-blue-50 rounded-[3rem] p-12 md:p-20 mb-24 text-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] overflow-hidden relative border-2 border-black">
