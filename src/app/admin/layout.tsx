@@ -45,6 +45,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <a href="/admin" className="block px-4 py-2 bg-black text-white rounded-lg font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
               Dashboard
             </a>
+            <a href="/admin/blogs" className="block px-4 py-2 hover:bg-gray-100 rounded-lg font-bold border-2 border-transparent hover:border-black transition-all">
+              Blogs
+            </a>
             <a href="/admin/users" className="block px-4 py-2 hover:bg-gray-100 rounded-lg font-bold border-2 border-transparent hover:border-black transition-all">
               Users
             </a>
