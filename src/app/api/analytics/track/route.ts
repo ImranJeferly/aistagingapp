@@ -14,6 +14,11 @@ export async function POST(request: Request) {
     const cleanPath = path === '/' ? 'home' : path.replace(/\//g, '_');
     const docId = `${date}_${cleanPath}`;
 
+    if (!adminDb) {
+      console.error('Firebase Admin not initialized');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
     const statsRef = adminDb.collection('page_stats').doc(docId);
 
     await statsRef.set({
