@@ -107,6 +107,23 @@ export default function FAQSection() {
 
   return (
     <section className="relative py-20 bg-[#FDF4FF] overflow-hidden">
+      {/* Wavy Background Animation */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-10">
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='200' viewBox='0 0 400 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 80 C 100 80 100 120 200 120 S 300 80 400 80' fill='none' stroke='%23d946ef' stroke-width='100'/%3E%3C/svg%3E")`,
+            backgroundSize: '800px 400px',
+            animation: 'waveSlide 20s linear infinite'
+          }}
+        />
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes waveSlide {
+            from { background-position: 0 0; }
+            to { background-position: 800px 0; }
+          }
+        `}} />
+      </div>
       {/* Floating Elements */}
       {/* <Floating3DModel 
         modelPath="/models/chair2.glb"
@@ -123,7 +140,7 @@ export default function FAQSection() {
       /> */}
 
       {/* Wiggly Lines */}
-      <WigglyLine 
+      {/* <WigglyLine 
         position={{ top: '20%', right: '15%' }}
         rotation="45deg"
         vectorNumber={2}
@@ -137,7 +154,7 @@ export default function FAQSection() {
         vectorNumber={4}
         opacity={0.4}
         scale={0.3}
-      />
+      /> */}
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-8">
         {/* Section Header */}

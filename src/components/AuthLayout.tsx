@@ -139,7 +139,7 @@ export default function AuthLayout({ children, title, subtitle, variant = 'login
         ))}
 
         {/* Illustrations */}
-        <div className="absolute inset-0 pointer-events-none">
+        {/* <div className="absolute inset-0 pointer-events-none">
           {theme.images.map((img, index) => (
             <img 
               key={`img-${index}`}
@@ -148,7 +148,7 @@ export default function AuthLayout({ children, title, subtitle, variant = 'login
               alt="Decorative furniture"
             />
           ))}
-        </div>
+        </div> */}
         
         {/* Geometric Shapes */}
         {theme.shapes.map((shape, index) => (
