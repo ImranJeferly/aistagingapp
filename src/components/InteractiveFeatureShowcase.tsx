@@ -6,35 +6,31 @@ import { motion, AnimatePresence } from 'framer-motion';
 const hotspots = [
   {
     id: 1,
-    x: 20,
-    y: 60,
-    label: "Empty Floor Area",
-    action: "Placing Modern Rug",
-    icon: "🧶"
+    x: 50,
+    y: 85,
+    action: "Add a large middle eastern rug covering the floor",
+    image: "/middleeastern-rug-removebg-preview.png"
   },
   {
     id: 2,
     x: 50,
-    y: 50,
-    label: "Main Living Space",
-    action: "Adding Sofa Set & Coffee Table",
-    icon: "🛋️"
+    y: 60,
+    action: "Add a simple modern gray sofa with a coffee table",
+    image: "/sofa-coffee-table-removebg-preview.png"
   },
   {
     id: 3,
-    x: 80,
+    x: 70,
     y: 40,
-    label: "Blank Wall",
-    action: "Hanging Abstract Art",
-    icon: "🖼️"
+    action: "Add a tall rustic wooden closet against the wall",
+    image: "/rustic-closet-removebg-preview.png"
   },
   {
     id: 4,
-    x: 30,
+    x: 28,
     y: 30,
-    label: "Natural Light Source",
-    action: "Optimizing Lighting & Shadows",
-    icon: "☀️"
+    action: "Add modern art on the wall",
+    image: "/modern-art-removebg-preview.png"
   }
 ];
 
@@ -44,26 +40,19 @@ export default function InteractiveFeatureShowcase() {
   return (
     <div className="w-full max-w-5xl mx-auto p-8 bg-white rounded-3xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
       <div className="text-center mb-12 relative z-10">
-        <h2 className="font-brand text-4xl md:text-5xl font-bold text-black mb-4">Smart Space Analysis</h2>
+        <h2 className="font-brand text-4xl md:text-5xl font-bold text-black mb-4">Interactive Staging Control</h2>
         <p className="text-lg text-gray-700 max-w-2xl mx-auto font-medium">
-          Our AI doesn't just paste images. It understands the geometry, lighting, and potential of your room.
-          Hover over the points below to see how it thinks.
+          Take full control of your staging. Click to add points, specify exactly what furniture you want placed where, 
+          and even upload reference images to guide the style.
         </p>
       </div>
 
       <div className="relative aspect-video bg-gray-100 rounded-xl overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group">
-        {/* Placeholder for Room Image - Using a gradient for now */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300">
-          <div className="absolute inset-0 opacity-10" 
-               style={{ backgroundImage: 'radial-gradient(#444 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-          </div>
-          
-          {/* Simulated Room Lines */}
-          <svg className="absolute inset-0 w-full h-full opacity-20 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path d="M0 100 L20 70 L80 70 L100 100" fill="none" stroke="currentColor" strokeWidth="0.5" />
-            <path d="M20 70 L20 20 L80 20 L80 70" fill="none" stroke="currentColor" strokeWidth="0.5" />
-          </svg>
-        </div>
+        <img 
+          src="/features-image.png" 
+          alt="Smart Space Analysis" 
+          className="absolute inset-0 w-full h-full object-cover"
+        />
 
         {/* Hotspots */}
         {hotspots.map((spot) => (
@@ -76,13 +65,13 @@ export default function InteractiveFeatureShowcase() {
             transition={{ delay: spot.id * 0.2 }}
           >
             <button
-              className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
+              className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
                 activeHotspot === spot.id ? 'bg-yellow-400 text-black scale-110' : 'bg-white text-black hover:bg-yellow-100'
               }`}
               onMouseEnter={() => setActiveHotspot(spot.id)}
               onMouseLeave={() => setActiveHotspot(null)}
             >
-              <span className="text-xl font-bold font-brand">+</span>
+              <span className="text-lg font-bold font-brand">+</span>
               
               {/* Pulse Effect */}
               <span className={`absolute inset-0 rounded-full opacity-75 animate-ping ${activeHotspot === spot.id ? 'bg-yellow-400' : 'bg-white'}`}></span>
@@ -96,11 +85,12 @@ export default function InteractiveFeatureShowcase() {
                   exit={{ opacity: 0, y: 10, scale: 0.9 }}
                   className="absolute left-1/2 bottom-full mb-6 -translate-x-1/2 w-64 bg-white rounded-xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-4 z-20 text-left pointer-events-none"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl bg-purple-100 border-2 border-black p-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">{spot.icon}</div>
-                    <div>
-                      <h4 className="font-bold font-brand text-black text-lg leading-tight">{spot.label}</h4>
-                      <p className="text-purple-600 text-sm font-bold mt-1 font-brand">{spot.action}</p>
+                  <div className="flex items-center">
+                    <div className="w-16 h-16 bg-purple-100 border-2 border-black p-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex-shrink-0">
+                      <img src={spot.image} alt="" className="w-full h-full object-contain" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-purple-600 text-sm font-bold font-brand leading-tight">{spot.action}</p>
                     </div>
                   </div>
                   {/* Arrow */}
