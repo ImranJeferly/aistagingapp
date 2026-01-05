@@ -3,7 +3,6 @@ import { Patrick_Hand, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "../contexts/AuthContext";
 import { Analytics } from "@vercel/analytics/next"
-import AnalyticsTracker from "@/components/AnalyticsTracker";
 
 const bbhHegarty = Patrick_Hand({
   variable: "--font-patrick-hand",
@@ -176,7 +175,6 @@ export default function RootLayout({
         className={`${bbhHegarty.variable} ${inter.variable} antialiased font-sans`}
       >
         <AuthProvider>
-          <AnalyticsTracker />
           {children}
         </AuthProvider>
          <Analytics />
