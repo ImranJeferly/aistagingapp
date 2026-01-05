@@ -33,7 +33,7 @@ export default function BlogsList() {
     
     const blogDate = (blog.createdAt as any).seconds 
       ? new Date((blog.createdAt as any).seconds * 1000)
-      : new Date(blog.createdAt);
+      : new Date(blog.createdAt as string | number);
       
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - parseInt(dateFilter));

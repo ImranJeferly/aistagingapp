@@ -83,7 +83,7 @@ export default function UsersPage() {
         // Handle Firestore Timestamp or Date check
         const userDate = (user.createdAt as any).seconds 
           ? new Date((user.createdAt as any).seconds * 1000)
-          : new Date(user.createdAt);
+          : new Date(user.createdAt as string | number);
         return userDate >= cutoff;
       });
     }
