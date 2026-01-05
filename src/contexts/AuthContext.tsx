@@ -66,6 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             headers: {
               'Authorization': `Bearer ${token}`
             }
+          }).then(res => {
+            if (!res.ok && res.status === 500) {
+              console.warn('IP Tracking disabled: Server configuration missing keys');
+            }
           }).catch(err => console.error('IP tracking failed:', err));
         } catch (error) {
           console.error('Error getting token for IP tracking:', error);
