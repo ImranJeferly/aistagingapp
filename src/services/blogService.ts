@@ -14,7 +14,8 @@ import {
 import { 
   ref, 
   uploadBytes, 
-  getDownloadURL 
+  getDownloadURL,
+  deleteObject
 } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 
@@ -43,9 +44,17 @@ export const uploadBlogImage = async (file: File): Promise<string> => {
   const storageRef = ref(storage, filename);
   
   await uploadBytes(storageRef, file);
-  const downloadURL = await getDownloadURL(storageRef);
-  
-  return downloadURL;
+  return getDownloadURL(storageRef);
+};
+
+export const deleteBlogImage = async (imageUrl: string) => {
+  if (!imageUrl) return;
+  try {
+    const storageRef = ref(storage, imageUrl);
+    await deleteObject(storageRef);
+  } catch (error) {
+    console.error('Error deleting image:', error);
+  }
 };
 
 export const createBlogPost = async (data: Omit<BlogPost, 'id' | 'createdAt' | 'updatedAt'>) => {

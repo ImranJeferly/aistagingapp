@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { getBlogPost, updateBlogPost, uploadBlogImage, BlogPost } from '@/services/blogService';
+import { getBlogPost, updateBlogPost, uploadBlogImage, deleteBlogImage, BlogPost } from '@/services/blogService';
 import { useAuth } from '@/contexts/AuthContext';
 import BlogEditor from '@/components/admin/BlogEditor';
 
@@ -67,7 +67,14 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
 
     try {
       let imageUrl = formData.coverImage;
+      
+      // Only upload new image if a new file was selected
       if (coverImage) {
+        // Delete old image if it exists
+        if (formData.coverImage) {
+          await deleteBlogImage(formData.coverImage);
+        }
+        // Upload new image
         imageUrl = await uploadBlogImage(coverImage);
       }
 
