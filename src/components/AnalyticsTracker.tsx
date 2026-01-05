@@ -28,7 +28,18 @@ export default function AnalyticsTracker() {
           path: pathname,
           date: today
         }),
-      }).catch(err => console.error('Analytics error:', err));
+      })
+      .then(res => {
+        if (!res.ok) {
+          // If server failed, remove the flag so we can try again
+          localStorage.removeItem(storageKey);
+        }
+      })
+      .catch(err => {
+        console.error('Analytics error:', err);
+        // If network failed, remove the flag so we can try again
+        localStorage.removeItem(storageKey);
+      });
     }
   }, [pathname]);
 
