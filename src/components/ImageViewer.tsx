@@ -179,7 +179,17 @@ export default function ImageViewer() {
     setSliderPosition(50);
   };
   return (
-    <section className="relative py-16 md:py-20 bg-white overflow-hidden">      {/* Floating Lamp */}
+    <section className="relative py-16 md:py-20 bg-white overflow-hidden">
+      {/* Hypnosis Background Effect */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] animate-[spin_20s_linear_infinite] opacity-30"
+          style={{
+            background: 'repeating-conic-gradient(from 0deg, #ccfbf1 0deg 15deg, transparent 15deg 30deg)'
+          }}
+        />
+      </div>
+      {/* Floating Lamp */}
       {/* <Floating3DModel 
         position={{ top: '10%', right: '8%' }}
         size="md"

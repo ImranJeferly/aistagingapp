@@ -16,6 +16,7 @@ import UploadSection from '../components/UploadSection';
 import PricingSection from '../components/PricingSection';
 import FAQSection from '../components/FAQSection';
 import Footer from '../components/Footer';
+import ExploreGallery from '../components/ExploreGallery';
 
 // JSON-LD structured data for SEO
 const jsonLd = {
@@ -266,6 +267,11 @@ export default function Home() {
       {/* Upload Section */}
       <section id="gallery">
         <UploadSection />
+      </section>
+
+      {/* Explore Gallery Section */}
+      <section className="mb-32">
+        <ExploreGallery />
       </section>
 
       {/* Pricing Section */}

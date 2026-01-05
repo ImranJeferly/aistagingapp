@@ -64,13 +64,10 @@ export default function ExploreGallery() {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
-      <div className="text-center mb-16">
-        <div className="inline-block px-4 py-1 bg-pink-100 text-pink-700 rounded-md text-sm font-bold mb-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-2">
-          Community Gallery
-        </div>
-        <h2 className="font-brand text-5xl font-bold text-black mb-6">
-          Explore <span className="text-pink-500 underline decoration-wavy decoration-2 underline-offset-4">Creations</span>
+    <div className="w-full max-w-7xl mx-auto p-4 py-24">
+      <div className="text-center mb-16 relative">
+        <h2 className="font-brand text-5xl md:text-6xl font-bold text-black mb-6 leading-tight">
+          Explore <span className="inline-block px-4 bg-orange-400 text-black rounded-lg border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">Creations</span>
         </h2>
         <p className="text-xl text-gray-700 max-w-2xl mx-auto font-medium">
           See what others are creating. Get inspired by thousands of staged rooms from our community.

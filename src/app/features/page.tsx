@@ -179,9 +179,9 @@ export default function FeaturesPage() {
           </div>
 
           {/* Explore Gallery Section */}
-          <section className="mb-32">
+          {/* <section className="mb-32">
             <ExploreGallery />
-          </section>
+          </section> */}
 
           {/* Virtual Renovation Section */}
           {/* <section className="mb-32 bg-white rounded-[3rem] border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 md:p-12 relative overflow-hidden">
