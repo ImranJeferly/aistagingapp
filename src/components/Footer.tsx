@@ -24,7 +24,7 @@ export default function Footer() {
               Perfect for real estate agents and property managers.
             </p>
             <div className="inline-block bg-[#A3E635] border-2 border-black rounded-lg px-4 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <p className="font-bold text-sm">Contact: imranjeferly@gmail.com</p>
+              <p className="font-bold text-sm">Contact: support@aistagingapp.com</p>
             </div>
           </div>
 

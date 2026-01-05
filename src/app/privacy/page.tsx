@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-2xl font-bold mb-4">1. Introduction</h2>
               <p className="mb-4">
-                Welcome to AI Staging App ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about this privacy notice or our practices with regard to your personal information, please contact us at imranjeferly@gmail.com.
+                Welcome to AI Staging App ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about this privacy notice or our practices with regard to your personal information, please contact us at support@aistagingapp.com.
               </p>
             </section>
 
@@ -74,7 +74,7 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-2xl font-bold mb-4">7. Contact Us</h2>
               <p className="mb-4">
-                If you have questions or comments about this policy, you may email us at imranjeferly@gmail.com.
+                If you have questions or comments about this policy, you may email us at support@aistagingapp.com.
               </p>
             </section>
           </div>

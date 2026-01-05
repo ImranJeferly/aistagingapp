@@ -17,7 +17,7 @@ export const sendVerificationEmail = async (to: string, code: string, name?: str
 
   try {
     await resend.emails.send({
-      from: 'AI Staging App <onboarding@aistagingapp.com>',
+      from: 'AI Staging App <support@aistagingapp.com>',
       to,
       subject: 'Your Verification Code',
       react: VerificationEmail({ code, name }),
@@ -40,7 +40,7 @@ export const sendPasswordResetEmail = async (to: string, resetLink: string, name
 
   try {
     await resend.emails.send({
-      from: 'AI Staging App <onboarding@aistagingapp.com>',
+      from: 'AI Staging App <support@aistagingapp.com>',
       to,
       subject: 'Reset Your Password',
       react: ResetPasswordEmail({ resetLink, name }),
@@ -63,7 +63,7 @@ export const sendAbuseDetectionEmail = async (to: string, name?: string) => {
 
   try {
     await resend.emails.send({
-      from: 'AI Staging App <onboarding@aistagingapp.com>',
+      from: 'AI Staging App <support@aistagingapp.com>',
       to,
       subject: 'Action Required: Account Restricted',
       react: AbuseDetectionEmail({ name }),

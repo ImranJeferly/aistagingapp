@@ -69,7 +69,7 @@ export default function TermsOfService() {
             <section>
               <h2 className="text-2xl font-bold mb-4">8. Contact Us</h2>
               <p className="mb-4">
-                In order to resolve a complaint regarding the Site or to receive further information regarding use of the Site, please contact us at imranjeferly@gmail.com.
+                In order to resolve a complaint regarding the Site or to receive further information regarding use of the Site, please contact us at support@aistagingapp.com.
               </p>
             </section>
           </div>
