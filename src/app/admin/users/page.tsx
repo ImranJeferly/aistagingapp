@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminService, UserData } from '@/services/adminService';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -11,14 +11,17 @@ export default function UsersPage() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
+  
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   useEffect(() => {
     loadUsers();
   }, []);
 
   useEffect(() => {
-    filterUsers();
-  }, [users, searchQuery, planFilter]);
+    filterAndSortUsers();
+  }, [users, searchQuery, planFilter, sortConfig]);
 
   async function loadUsers() {
     try {
@@ -33,10 +36,26 @@ export default function UsersPage() {
     }
   }
 
-  function filterUsers() {
+  function handleSort(key: string) {
+    let direction: 'asc' | 'desc' = 'asc';
+    
+    if (sortConfig && sortConfig.key === key) {
+      if (sortConfig.direction === 'asc') {
+        direction = 'desc';
+      } else {
+        // Reset sort if clicked again on desc
+        setSortConfig(null);
+        return;
+      }
+    }
+    
+    setSortConfig({ key, direction });
+  }
+
+  function filterAndSortUsers() {
     let result = [...users];
 
-    // Filter by search query
+    // 1. Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(user => 
@@ -47,9 +66,63 @@ export default function UsersPage() {
       );
     }
 
-    // Filter by plan
+    // 2. Filter by plan
     if (planFilter !== 'all') {
       result = result.filter(user => (user.plan || 'free') === planFilter);
+    }
+
+    // 3. Sort
+    if (sortConfig) {
+      result.sort((a: any, b: any) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle specific sorting cases
+        if (sortConfig.key === 'name') {
+          const nameA = a.firstName || a.lastName ? `${a.firstName} ${a.lastName}` : (a.displayName || a.email);
+          const nameB = b.firstName || b.lastName ? `${b.firstName} ${b.lastName}` : (b.displayName || b.email);
+          return sortConfig.direction === 'asc' 
+            ? nameA.localeCompare(nameB) 
+            : nameB.localeCompare(nameA);
+        }
+
+        if (sortConfig.key === 'plan') {
+           // Sort by plan value (Free < Basic < Pro < Enterprise)
+           const planOrder: Record<string, number> = { 'free': 0, 'basic': 1, 'pro': 2, 'enterprise': 3 };
+           const valA = planOrder[a.plan?.toLowerCase() || 'free'] || 0;
+           const valB = planOrder[b.plan?.toLowerCase() || 'free'] || 0;
+           return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+        }
+
+        if (sortConfig.key === 'createdAt' || sortConfig.key === 'lastActive') {
+            // Handle timestamps
+            const timeA = aValue?.seconds ? aValue.seconds : (new Date(aValue || 0).getTime() / 1000);
+            const timeB = bValue?.seconds ? bValue.seconds : (new Date(bValue || 0).getTime() / 1000);
+            return sortConfig.direction === 'asc' ? timeA - timeB : timeB - timeA;
+        }
+
+        if (sortConfig.key === 'engagement') {
+             // Sort by engagement level (New User < Same Day < Returned)
+             // We can approximate this by the difference between lastActive and createdAt
+            const getDiff = (u: any) => {
+                const c = u.createdAt?.seconds ? u.createdAt.seconds : (new Date(u.createdAt || 0).getTime() / 1000);
+                const l = u.lastActive?.seconds ? u.lastActive.seconds : (new Date(u.lastActive || 0).getTime() / 1000);
+                return (l || c) - c;
+            };
+            const diffA = getDiff(a);
+            const diffB = getDiff(b);
+            return sortConfig.direction === 'asc' ? diffA - diffB : diffB - diffA;
+        }
+
+        // Default string comparison
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortConfig.direction === 'asc' 
+            ? aValue.localeCompare(bValue) 
+            : bValue.localeCompare(aValue);
+        }
+        
+        return 0;
+      });
     }
 
     setFilteredUsers(result);
@@ -108,6 +181,31 @@ export default function UsersPage() {
     
     const days = Math.floor(diffHours / 24);
     return <span className="px-2 py-1 bg-green-50 rounded text-xs font-bold text-green-700">Returned (+{days}d)</span>;
+  }
+  
+  function SortIcon({ active, direction }: { active: boolean; direction?: 'asc' | 'desc' }) {
+    if (!active) return <ArrowUpDown size={14} className="ml-1 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />;
+    return direction === 'asc' 
+      ? <ArrowUp size={14} className="ml-1 text-black" />
+      : <ArrowDown size={14} className="ml-1 text-black" />;
+  }
+
+  function SortableHeader({ label, sortKey, width }: { label: string; sortKey: string; width?: string }) {
+    const isActive = sortConfig?.key === sortKey;
+    // Handle custom padding if provided in width, else default to px-6
+    const paddingClass = width?.includes('pl-') || width?.includes('px-') ? '' : 'px-6';
+    
+    return (
+      <th 
+        className={`${paddingClass} py-4 text-left text-sm font-black uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors ${width || ''}`}
+        onClick={() => handleSort(sortKey)}
+      >
+        <div className="flex items-center">
+          {label}
+          <SortIcon active={isActive} direction={sortConfig?.direction} />
+        </div>
+      </th>
+    );
   }
 
   if (loading) {
@@ -168,12 +266,12 @@ export default function UsersPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b-2 border-black">
               <tr>
-                <th className="px-2 py-4 text-left text-sm font-black uppercase tracking-wider w-[200px]">User</th>
-                <th className="px-6 py-4 text-left text-sm font-black uppercase tracking-wider">Plan</th>
-                <th className="px-6 py-4 text-left text-sm font-black uppercase tracking-wider">Joined</th>
-                <th className="px-6 py-4 text-left text-sm font-black uppercase tracking-wider">Engagement</th>
-                <th className="px-6 py-4 text-left text-sm font-black uppercase tracking-wider">Last Active</th>
-                <th className="px-6 py-4 text-left text-sm font-black uppercase tracking-wider">Email Used</th>
+                <SortableHeader label="User" sortKey="name" width="pl-2 w-[200px]" />
+                <SortableHeader label="Plan" sortKey="plan" />
+                <SortableHeader label="Joined" sortKey="createdAt" />
+                <SortableHeader label="Engagement" sortKey="engagement" />
+                <SortableHeader label="Last Active" sortKey="lastActive" />
+                <SortableHeader label="Email Used" sortKey="email" />
               </tr>
             </thead>
             <tbody className="divide-y-2 divide-gray-100">
