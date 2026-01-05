@@ -45,12 +45,15 @@ export default function Dashboard() {
         ...doc.data()
       })) as any[];
 
+      // Filter out admin pages from display
+      const filteredData = rawData.filter(d => !d.path?.startsWith('/admin'));
+
       // Aggregate specifically for Total Traffic counter
       let total = 0;
-      rawData.forEach(d => total += (d.views || 0));
+      filteredData.forEach(d => total += (d.views || 0));
       setTotalTraffic(total);
 
-      setStats(rawData.reverse()); // Show oldest to newest
+      setStats(filteredData.reverse()); // Show oldest to newest
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
