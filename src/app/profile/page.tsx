@@ -192,7 +192,7 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-[#FFFCF5] flex flex-col relative overflow-hidden">
         {/* Background Decorations */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {decorations.map((item, i) => (
+          {/* {decorations.map((item, i) => (
             <motion.img
               key={i}
               src={item.src}
@@ -211,7 +211,7 @@ export default function ProfilePage() {
                 rotate: item.rotation
               }}
             />
-          ))}
+          ))} */}
         </div>
 
         <Navigation />
