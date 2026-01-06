@@ -395,7 +395,7 @@ function UploadPageContent() {
         // Guest limit check
         if (isLimitReached) {
             setError('Guest upload limit reached. Please sign in to continue.');
-            setAuthModalOpen(true);
+            setShowAuthModal(true);
             return;
         }
     }
