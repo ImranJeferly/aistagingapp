@@ -620,6 +620,10 @@ function UploadPageContent() {
                 if (!saveResp.ok) {
                     console.error("Failed to save guest upload record:", await saveResp.text());
                 } else {
+                    const savedData = await saveResp.json();
+                    if (savedData.id) {
+                         setUploadedRecordId(savedData.id);
+                    }
                     console.log("Guest upload recorded successfully");
                 }
             }
@@ -673,10 +677,24 @@ function UploadPageContent() {
   };
 
   const handleFeedbackSubmit = async () => {
-    if (!user || !uploadedRecordId || !feedback) return;
+    if (!uploadedRecordId || !feedback) return;
     
     try {
-        await submitUploadFeedback(user.uid, uploadedRecordId, feedback, complaintText);
+        if (user) {
+            await submitUploadFeedback(user.uid, uploadedRecordId, feedback, complaintText);
+        } else {
+            // Guest feedback
+            const res = await fetch('/api/guest/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recordId: uploadedRecordId,
+                    feedback,
+                    complaint: complaintText
+                })
+            });
+            if (!res.ok) throw new Error('Feedback API failed');
+        }
         setFeedbackSubmitted(true);
     } catch (e) {
         console.error("Failed to submit feedback", e);
@@ -1060,7 +1078,7 @@ function UploadPageContent() {
                         </div>
 
                         {/* Feedback Section */}
-                        {user && uploadedRecordId && (
+                        {uploadedRecordId && (
                             <div className="p-6 flex-1 flex flex-col">
                                 <h4 className="font-black text-lg uppercase mb-4">Rate Result</h4>
                                 
@@ -1117,9 +1135,9 @@ function UploadPageContent() {
                                 )}
                             </div>
                         )}
-                        {!user && stagedImageUrl && (
+                        {!uploadedRecordId && stagedImageUrl && (
                              <div className="p-6">
-                                <p className="text-sm text-gray-500 italic text-center">Sign in to save this result and leave feedback.</p>
+                                <p className="text-sm text-gray-500 italic text-center">Saving record...</p>
                              </div>
                         )}
                     </div>
