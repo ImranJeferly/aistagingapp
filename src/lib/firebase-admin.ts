@@ -9,12 +9,13 @@ if (!getApps().length) {
   if (privateKey) {
     // 1. Handle JSON stringified input (common in some configs)
     if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        const keyToParse = privateKey;
         try {
             // Try processing as a string literal to handle escaped characters correctly
-            privateKey = JSON.parse(privateKey);
+            privateKey = JSON.parse(keyToParse);
         } catch (e) {
             // Fallback: manual stripping if parse fails
-            privateKey = privateKey.slice(1, -1);
+            privateKey = keyToParse.slice(1, -1);
         }
     }
 
