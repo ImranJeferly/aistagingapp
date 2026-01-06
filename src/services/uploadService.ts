@@ -25,6 +25,9 @@ export interface UploadRecord {
   isInitialDocument?: boolean;
   style: string; // Store the selected style
   roomType: string; // Store the selected room type
+  originalImageUrl?: string;
+  stagedImageUrl?: string;
+  aiDescription?: string;
 }
 
 // Get user tier from Firestore user document

@@ -7,6 +7,7 @@ import Footer from '../../components/Footer';
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
+import { uploadFileToStorage } from '../../services/storageService';
 import { Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -511,15 +512,48 @@ function UploadPageContent() {
              // For now just logging it as per instructions
         }
 
-        // Only create the upload record since the image was successfully generated
-        await addCompletedUploadRecord({
-          userId: user.uid,
-          uploadedAt: Timestamp.now(),
-          imageSize: selectedFile.size,
-          imageName: selectedFile.name,
-          style: selectedStyle,
-          roomType: selectedRoomType
-        });
+        // --- UPLOAD TO FIREBASE STORAGE ---
+        try {
+            console.log("Uploading images to Firebase Storage...");
+            
+            // 1. Upload Original Image
+            // We use originalBlob which is the compressed/optimized version used for AI
+            const originalStorageUrl = await uploadFileToStorage(
+                originalBlob, 
+                `uploads/${user.uid}/original`
+            );
+            console.log("Original image uploaded:", originalStorageUrl);
+
+            // 2. Upload Staged Image
+            // Convert base64 to blob
+            const stagedBlob = await (await fetch(result.stagedImage)).blob();
+             const stagedStorageUrl = await uploadFileToStorage(
+                stagedBlob, 
+                `uploads/${user.uid}/staged`
+            );
+            console.log("Staged image uploaded:", stagedStorageUrl);
+
+            // 3. Create Record
+            await addCompletedUploadRecord({
+              userId: user.uid,
+              uploadedAt: Timestamp.now(),
+              imageSize: selectedFile.size,
+              imageName: selectedFile.name,
+              style: selectedStyle,
+              roomType: selectedRoomType,
+              originalImageUrl: originalStorageUrl,
+              stagedImageUrl: stagedStorageUrl,
+              aiDescription: result.aiDescription
+            });
+            console.log("Upload record created!");
+            
+        } catch (uploadError) {
+            console.error("Error saving to storage/firestore:", uploadError);
+            // We don't block the UI success state if background save fails, but we log it
+            // Optionally could throw here if strict consistency is required
+        }
+        
+        // Refresh the upload history to show the new record
         
         // Refresh the upload history to show the new record
         const updatedHistory = await getAllUserUploads(user.uid);
