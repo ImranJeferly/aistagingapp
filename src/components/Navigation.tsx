@@ -103,7 +103,7 @@ export default function Navigation() {
       {/* Promo Banner */}
       <div 
         className={`fixed top-0 left-0 right-0 z-[60] bg-[#FF90E8] border-b-2 border-black text-black overflow-hidden py-2.5 transition-transform duration-500 ease-in-out ${
-          showPromo && pathname !== '/upload' && pathname !== '/profile' && !isMobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
+          showPromo && pathname !== '/upload' && pathname !== '/profile' && !pathname?.startsWith('/blogs') && !isMobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
         <div className="flex items-center w-full">
@@ -127,10 +127,10 @@ export default function Navigation() {
       </div>
 
       <header className={`fixed left-0 right-0 z-50 flex items-center justify-between transition-all duration-500 ease-in-out ${
-        showPromo && pathname !== '/upload' && pathname !== '/profile' && !isMobileMenuOpen ? 'top-11' : 'top-0'
+        showPromo && pathname !== '/upload' && pathname !== '/profile' && !pathname?.startsWith('/blogs') && !isMobileMenuOpen ? 'top-11' : 'top-0'
       } ${
         isScrolled 
-          ? `${pathname === '/pricing' ? 'bg-[#E0F2FE]/90 border-blue-200' : 'bg-[#FFFCF5]/80 border-gray-200'} backdrop-blur-md border-b px-4 sm:px-6 py-3 sm:py-4`
+          ? `${(pathname === '/pricing' || (pathname?.startsWith('/blogs') && pathname !== '/blogs')) ? 'bg-[#E0F2FE]/90 border-blue-200' : 'bg-[#FFFCF5]/80 border-gray-200'} backdrop-blur-md border-b px-4 sm:px-6 py-3 sm:py-4`
           : 'bg-transparent border-b border-transparent px-4 sm:px-8 md:px-12 py-6 sm:py-8'
       }`}>      {/* Logo */}
       <Link href="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity relative z-[60]">
@@ -146,6 +146,7 @@ export default function Navigation() {
       <nav className="hidden lg:flex items-center space-x-8 xl:space-x-12">
         <NavLink href="/features">Features</NavLink>
         <NavLink href="/upload">Upload</NavLink>
+        <NavLink href="/blogs">Blog</NavLink>
         <NavLink href="/pricing">Pricing</NavLink>
         <NavLink href="#faq">FAQ</NavLink>
       </nav>
@@ -239,6 +240,7 @@ export default function Navigation() {
               {[
                 { href: '/features', label: 'Features' },
                 { href: '/upload', label: 'Upload' },
+                { href: '/blogs', label: 'Blog' },
                 { href: '/pricing', label: 'Pricing' },
                 { href: '/#faq', label: 'FAQ' }
               ].map((link) => (

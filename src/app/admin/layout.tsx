@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { notFound, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Users, BarChart2, Settings, ArrowLeft, Star } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BarChart2, Settings, ArrowLeft, Star, Globe } from 'lucide-react';
 
 const ADMIN_EMAIL = 'imranjeferly@gmail.com';
 
@@ -28,6 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Blogs', href: '/admin/blogs', icon: FileText },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Reviews', href: '/admin/reviews', icon: Star },
+    { name: 'Explore', href: '/admin/explore', icon: Globe },
     // { name: 'Statistics', href: '/admin/stats', icon: BarChart2 },
     // { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
