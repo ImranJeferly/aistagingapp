@@ -6,6 +6,12 @@ service firebase.storage {
       allow read: if true;
     }
     
+    // Guest uploads
+    match /guest_uploads/{sessionId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 10 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+    }
+
     // User uploads for staging (assuming /uploads path)
     match /uploads/{userId}/{allPaths=**} {
       allow write: if request.auth != null && request.auth.uid == userId;

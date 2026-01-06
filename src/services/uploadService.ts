@@ -99,7 +99,7 @@ export const getUserTotalUploads = async (userId: string): Promise<UploadRecord[
         id: doc.id,
         ...doc.data()
       } as UploadRecord))
-      .filter(upload => upload.id !== 'init');
+      .filter(upload => upload.id !== 'init' && upload.stagedImageUrl); // Filter for storage URL
     
     console.log(`[DEBUG] getUserTotalUploads for ${userId}: Found ${uploads.length} total uploads`);
     return uploads;
@@ -131,7 +131,7 @@ export const getUserUploadsThisMonth = async (userId: string): Promise<UploadRec
         id: doc.id,
         ...doc.data()
       } as UploadRecord))
-      .filter(upload => !upload.isInitialDocument);
+      .filter(upload => !upload.isInitialDocument && upload.stagedImageUrl); // Filter for storage URL
     
     return uploads;
   } catch (error) {
@@ -163,7 +163,7 @@ export const getUserUploadsToday = async (userId: string): Promise<UploadRecord[
         id: doc.id,
         ...doc.data()
       } as UploadRecord))
-      .filter(upload => !upload.isInitialDocument);
+      .filter(upload => !upload.isInitialDocument && upload.stagedImageUrl); // Filter for storage URL
     
     return uploads;
   } catch (error) {
@@ -244,7 +244,7 @@ export const getAllUserUploads = async (userId: string): Promise<UploadRecord[]>
         id: doc.id,
         ...doc.data()
       } as UploadRecord))
-      .filter(upload => !upload.isInitialDocument);
+      .filter(upload => !upload.isInitialDocument && upload.stagedImageUrl); // Filter for storage URL
     
     return uploads;
   } catch (error) {

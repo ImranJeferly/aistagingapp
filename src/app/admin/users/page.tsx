@@ -131,6 +131,10 @@ export default function UsersPage() {
             return sortConfig.direction === 'asc' ? diffA - diffB : diffB - diffA;
         }
 
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+
         // Default string comparison
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           return sortConfig.direction === 'asc' 
@@ -300,6 +304,7 @@ export default function UsersPage() {
               <tr>
                 <SortableHeader label="User" sortKey="name" width="pl-2 w-[200px]" />
                 <SortableHeader label="Plan" sortKey="plan" />
+                <SortableHeader label="Uploads" sortKey="uploadCount" />
                 <SortableHeader label="Joined" sortKey="createdAt" />
                 <SortableHeader label="Engagement" sortKey="engagement" />
                 <SortableHeader label="Last Active" sortKey="lastActive" />
@@ -332,6 +337,9 @@ export default function UsersPage() {
                     <span className={`px-3 py-1 inline-flex text-xs leading-5 font-black uppercase rounded-full border-2 ${getPlanColor(user.plan)}`}>
                       {user.plan || 'Free'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 border-l border-gray-100 pl-8">
+                     {user.uploadCount ?? 0}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
                     {formatDate(user.createdAt)}

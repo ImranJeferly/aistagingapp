@@ -27,13 +27,13 @@ export default function AdminExplorePage() {
     }
   };
 
-  const handleStatusUpdate = async (imageId: string, status: ExploreStatus) => {
-    setProcessingId(imageId);
+  const handleStatusUpdate = async (image: StagedImage, status: ExploreStatus) => {
+    setProcessingId(image.id);
     try {
-      await exploreService.updateExploreStatus(imageId, status);
+      await exploreService.updateExploreStatus(image.refPath, status);
       // Update local state
       setImages(prev => prev.map(img => 
-        img.id === imageId ? { ...img, exploreStatus: status } : img
+        img.id === image.id ? { ...img, exploreStatus: status } : img
       ));
     } catch (error) {
       console.error(`Failed to update status to ${status}`, error);
@@ -162,7 +162,9 @@ export default function AdminExplorePage() {
               <div className="flex-1 space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-gray-600">
                   <User size={14} />
-                  <span className="truncate flex-1" title={image.userId}>User: {image.userId.substring(0, 8)}...</span>
+                  <span className="truncate flex-1" title={image.userId || 'Guest'}>
+                    User: {image.userId ? `${image.userId.substring(0, 8)}...` : 'Guest'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <Calendar size={14} />
@@ -178,7 +180,7 @@ export default function AdminExplorePage() {
               {/* Actions */}
               <div className="grid grid-cols-2 gap-2 mt-auto pt-4 border-t-2 border-gray-100">
                 <button
-                  onClick={() => handleStatusUpdate(image.id, 'approved')}
+                  onClick={() => handleStatusUpdate(image, 'approved')}
                   disabled={processingId === image.id || image.exploreStatus === 'approved'}
                   className={`
                     flex items-center justify-center gap-2 px-2 py-2 text-sm font-bold border-2 transition-all
@@ -192,7 +194,7 @@ export default function AdminExplorePage() {
                   Approve
                 </button>
                 <button
-                  onClick={() => handleStatusUpdate(image.id, 'rejected')}
+                  onClick={() => handleStatusUpdate(image, 'rejected')}
                   disabled={processingId === image.id || image.exploreStatus === 'rejected'}
                   className={`
                     flex items-center justify-center gap-2 px-2 py-2 text-sm font-bold border-2 transition-all

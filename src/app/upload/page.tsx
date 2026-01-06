@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import AuthGuard from '../../components/AuthGuard';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
+import AuthModal from '../../components/AuthModal';
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
@@ -70,8 +71,10 @@ function UploadPageContent() {
   const [drawingMarkerId, setDrawingMarkerId] = useState<string | null>(null);
   const [isDrawingRadius, setIsDrawingRadius] = useState(false);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [showFileSizeWarning, setShowFileSizeWarning] = useState(false);
   const [showRadiusError, setShowRadiusError] = useState(false);
+  const [showClearConfirmation, setShowClearConfirmation] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const justFinishedDrawing = useRef(false);
 
@@ -364,25 +367,30 @@ function UploadPageContent() {
         console.log("No file selected");
         return;
     }
+    // Guest allowed
+    /*
     if (!user) {
         console.log("No user logged in");
         return;
     }
+    */
     if (!isFormValid) {
         console.log("Form invalid");
         return;
     }
     
     // Check if user can upload
-    const canUpload = await canUserUpload(user.uid);
-    if (!canUpload) {
-      const tier = userTier || 'free';
-      if (tier === 'free') {
-        setError('You have reached your limit of 5 total staged images. Upgrade to a paid plan for monthly limits.');
-      } else {
-        setError('You have reached your monthly limit. Your limit resets on the 1st of next month.');
-      }
-      return;
+    if (user) {
+        const canUpload = await canUserUpload(user.uid);
+        if (!canUpload) {
+          const tier = userTier || 'free';
+          if (tier === 'free') {
+            setError('You have reached your limit of 5 total staged images. Upgrade to a paid plan for monthly limits.');
+          } else {
+            setError('You have reached your monthly limit. Your limit resets on the 1st of next month.');
+          }
+          return;
+        }
     }
     
     setError(null);
@@ -450,10 +458,24 @@ function UploadPageContent() {
 
       // Call API with expanded payload
       console.log("Sending request to API...");
+
+      // Get auth token if user is logged in
+      let authToken = '';
+      if (user) {
+        try {
+          console.log("Attempting to get fresh ID token for user:", user.uid);
+          authToken = await user.getIdToken(true); // Force refresh to ensure valid token
+          console.log("ID Token obtained successfully");
+        } catch (e) {
+          console.error("Failed to get ID token:", e);
+        }
+      }
+
       const response = await fetch('/api/stage-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify({
           originalImage: originalBase64,  // Clean room
@@ -468,6 +490,13 @@ function UploadPageContent() {
       console.log("Response received:", response.status);
 
       if (!response.ok) {
+        // Handle Limit Reached specifically (Guest Limit)
+        if (response.status === 429) {
+             setIsUploading(false);
+             setShowAuthModal(true);
+             return;
+        }
+
         let errorMessage = 'Failed to stage image';
         
         // Handle specific error codes
@@ -515,37 +544,65 @@ function UploadPageContent() {
         // --- UPLOAD TO FIREBASE STORAGE ---
         try {
             console.log("Uploading images to Firebase Storage...");
-            
-            // 1. Upload Original Image
-            // We use originalBlob which is the compressed/optimized version used for AI
-            const originalStorageUrl = await uploadFileToStorage(
-                originalBlob, 
-                `uploads/${user.uid}/original`
-            );
-            console.log("Original image uploaded:", originalStorageUrl);
-
-            // 2. Upload Staged Image
-            // Convert base64 to blob
             const stagedBlob = await (await fetch(result.stagedImage)).blob();
-             const stagedStorageUrl = await uploadFileToStorage(
-                stagedBlob, 
-                `uploads/${user.uid}/staged`
-            );
-            console.log("Staged image uploaded:", stagedStorageUrl);
+            
+            if (user) {
+                // 1. Upload Original Image
+                // We use originalBlob which is the compressed/optimized version used for AI
+                const originalStorageUrl = await uploadFileToStorage(
+                    originalBlob, 
+                    `uploads/${user.uid}/original`
+                );
+                console.log("Original image uploaded:", originalStorageUrl);
 
-            // 3. Create Record
-            await addCompletedUploadRecord({
-              userId: user.uid,
-              uploadedAt: Timestamp.now(),
-              imageSize: selectedFile.size,
-              imageName: selectedFile.name,
-              style: selectedStyle,
-              roomType: selectedRoomType,
-              originalImageUrl: originalStorageUrl,
-              stagedImageUrl: stagedStorageUrl,
-              aiDescription: result.aiDescription
-            });
-            console.log("Upload record created!");
+                // 2. Upload Staged Image
+                const stagedStorageUrl = await uploadFileToStorage(
+                    stagedBlob, 
+                    `uploads/${user.uid}/staged`
+                );
+                console.log("Staged image uploaded:", stagedStorageUrl);
+
+                // 3. Create Record
+                await addCompletedUploadRecord({
+                  userId: user.uid,
+                  uploadedAt: Timestamp.now(),
+                  imageSize: selectedFile.size,
+                  imageName: selectedFile.name,
+                  style: selectedStyle,
+                  roomType: selectedRoomType,
+                  originalImageUrl: originalStorageUrl,
+                  stagedImageUrl: stagedStorageUrl,
+                  aiDescription: result.aiDescription
+                });
+                console.log("Upload record created!");
+
+                // Refresh the upload history to show the new record
+                const updatedHistory = await getAllUserUploads(user.uid);
+                setUploadHistory(updatedHistory);
+                refreshLimit();
+            } else {
+                 // GUEST UPLOAD
+                 let guestId = localStorage.getItem('guest_session_id');
+                 if (!guestId) {
+                     guestId = crypto.randomUUID();
+                     localStorage.setItem('guest_session_id', guestId);
+                 }
+                 
+                 const originalStorageUrl = await uploadFileToStorage(originalBlob, `guest_uploads/${guestId}/original`);
+                 const stagedStorageUrl = await uploadFileToStorage(stagedBlob, `guest_uploads/${guestId}/staged`);
+                 
+                 await fetch('/api/guest/save-upload', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({
+                       sessionId: guestId,
+                       originalImageUrl: originalStorageUrl,
+                       stagedImageUrl: stagedStorageUrl,
+                       style: selectedStyle,
+                       roomType: selectedRoomType
+                   })
+                });
+            }
             
         } catch (uploadError) {
             console.error("Error saving to storage/firestore:", uploadError);
@@ -553,11 +610,6 @@ function UploadPageContent() {
             // Optionally could throw here if strict consistency is required
         }
         
-        // Refresh the upload history to show the new record
-        
-        // Refresh the upload history to show the new record
-        const updatedHistory = await getAllUserUploads(user.uid);
-        setUploadHistory(updatedHistory);
       } else {
         console.error('No staged image in result:', result);
         throw new Error('No staged image was generated');
@@ -572,7 +624,9 @@ function UploadPageContent() {
       setError(error instanceof Error ? error.message : 'Upload failed. Please try again.');
       setIsUploading(false);
     }
-  };  const clearSelection = () => {
+  };
+
+  const performClear = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
     setUploadResult(null);
@@ -581,7 +635,14 @@ function UploadPageContent() {
     setSelectedRoomType('');
     setAdditionalPrompt('');
     setMarkerPositions([]);
-  };  // Download function for the staged image
+    setShowClearConfirmation(false);
+  };
+
+  const clearSelection = () => {
+    setShowClearConfirmation(true);
+  };
+
+  // Download function for the staged image
   const downloadStagedImage = () => {
     if (!stagedImageUrl) return;
     
@@ -1157,6 +1218,149 @@ function UploadPageContent() {
                           )}
                     </div>
 
+                    {/* Mobile Marker List */}
+                    <div className="lg:hidden space-y-4">
+                        {markerPositions.length > 0 && (
+                            <>
+                                <h3 className="font-black text-xl uppercase mb-4 flex items-center gap-2 mt-8">
+                                    <span className="bg-black text-white w-8 h-8 flex items-center justify-center rounded-lg text-sm">#</span>
+                                    Point Details
+                                </h3>
+                                {markerPositions.map((marker, index) => (
+                                    <motion.div 
+                                        key={marker.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="bg-white border-2 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative group"
+                                    >
+                                    <div 
+                                        className="absolute -top-3 -left-3 text-black border-2 border-black w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-sm z-10"
+                                        style={{ backgroundColor: marker.color }}
+                                    >
+                                        {index + 1}
+                                    </div>
+                                    <button 
+                                        onClick={() => setMarkerPositions(prev => prev.filter(m => m.id !== marker.id))}
+                                        className="absolute -top-2 -right-2 bg-red-500 text-white hover:bg-red-600 border-2 border-black w-7 h-7 rounded-lg flex items-center justify-center transition-colors shadow-sm z-10"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                    
+                                    <div className="mt-4 space-y-3">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase mb-1">Instructions</label>
+                                            <textarea 
+                                                value={marker.instruction || ''}
+                                                onChange={(e) => updateMarker(marker.id, { instruction: e.target.value })}
+                                                className="w-full text-sm p-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-gray-50 focus:bg-white"
+                                                rows={2}
+                                                placeholder="Describe what to do here..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase mb-1">Reference Image</label>
+                                            <div className="relative flex items-center gap-2">
+                                                <input 
+                                                    type="file" 
+                                                    className="hidden" 
+                                                    id={`ref-img-mobile-${marker.id}`}
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            if (file.size > 4 * 1024 * 1024) { // 4MB limit
+                                                                setShowFileSizeWarning(true);
+                                                                setTimeout(() => setShowFileSizeWarning(false), 10000);
+                                                                e.target.value = ''; 
+                                                                return;
+                                                            }
+                                                            updateMarker(marker.id, { referenceImage: file });
+                                                        }
+                                                    }}
+                                                />
+                                                <label 
+                                                    htmlFor={`ref-img-mobile-${marker.id}`}
+                                                    className={`flex-1 flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 hover:border-black transition-colors ${marker.referenceImage ? 'border-black bg-blue-50' : 'border-gray-400'}`}
+                                                >
+                                                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                    <span className="text-xs font-bold text-gray-600 truncate max-w-[150px]">
+                                                        {marker.referenceImage ? marker.referenceImage.name : 'Upload Reference'}
+                                                    </span>
+                                                </label>
+                                                {marker.referenceImage && (
+                                                    <button
+                                                        onClick={() => {
+                                                            updateMarker(marker.id, { referenceImage: undefined });
+                                                            const input = document.getElementById(`ref-img-mobile-${marker.id}`) as HTMLInputElement;
+                                                            if (input) input.value = '';
+                                                        }}
+                                                        className="bg-white hover:bg-red-50 text-red-500 border-2 border-gray-200 hover:border-red-500 rounded-lg p-2 transition-colors"
+                                                        title="Remove image"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                         {/* Draw Radius Button */}
+                                         <div>
+                                            {drawingMarkerId === marker.id ? (
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1 bg-black text-white border-2 border-black rounded-lg py-2 text-xs font-bold uppercase flex items-center justify-center gap-2 animate-pulse">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                        Drawing...
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setDrawingMarkerId(null)}
+                                                        className="bg-white text-gray-500 border-2 border-black rounded-lg px-3 hover:bg-gray-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                        title="Cancel"
+                                                    >
+                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => setDrawingMarkerId(marker.id)}
+                                                        className={`flex-1 border-2 border-black rounded-lg py-2 text-xs font-bold uppercase transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-2 ${
+                                                            marker.radiusPoints && marker.radiusPoints.length > 0 
+                                                                ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' 
+                                                                : 'bg-white text-black hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                        {marker.radiusPoints && marker.radiusPoints.length > 0 ? 'Draw Again' : 'Draw Radius'}
+                                                    </button>
+                                                    {marker.radiusPoints && marker.radiusPoints.length > 0 && (
+                                                        <button
+                                                            onClick={() => updateMarker(marker.id, { radiusPoints: [] })}
+                                                            className="bg-white text-red-500 border-2 border-black rounded-lg px-3 hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                            title="Clear Radius"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    </motion.div>
+                                ))}
+                            </>
+                        )}
+                    </div>
+
                     {/* Controls */}
                     <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
                         <div className="space-y-8">
@@ -1250,6 +1454,9 @@ function UploadPageContent() {
                                 )}
                              </div>
                         </div>
+                    </div>
+                    {/* Mobile Marker List */}
+                    <div className="lg:hidden space-y-4">
                     </div>
                 </motion.div>
                 
@@ -1450,6 +1657,42 @@ function UploadPageContent() {
                         Radius must include the point!
                     </motion.div>
                 )}
+                
+                {/* Clear Confirmation Modal */}
+                {showClearConfirmation && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowClearConfirmation(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-white border-2 border-black rounded-xl p-6 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative text-center"
+                        >
+                            <h3 className="text-xl font-black uppercase mb-6">Are you sure?</h3>
+                            
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setShowClearConfirmation(false)}
+                                    className="flex-1 py-3 font-bold border-2 border-black rounded-lg hover:bg-gray-100 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none bg-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={performClear}
+                                    className="flex-1 py-3 font-bold bg-red-500 text-white border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-red-600 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                >
+                                    Yes
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
                  
 
             </AnimatePresence>
@@ -1458,13 +1701,31 @@ function UploadPageContent() {
           </motion.div>
         </main>
 
-        {/* Upload History */}
+       {/* Upload History */}
        {uploadHistory.length > 0 && (
-          <section className="py-16 px-4 border-t-2 border-black bg-white">
-            <div className="max-w-6xl mx-auto">
+          <section className="relative py-16 px-4 bg-[#F0F9FF] overflow-hidden">
+            {/* Wavy Background Animation */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+              <div 
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='200' viewBox='0 0 400 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 80 C 100 80 100 120 200 120 S 300 80 400 80' fill='none' stroke='white' stroke-width='100'/%3E%3C/svg%3E")`,
+                  backgroundSize: '800px 400px',
+                  animation: 'waveSlide 20s linear infinite'
+                }}
+              />
+              <style dangerouslySetInnerHTML={{__html: `
+                @keyframes waveSlide {
+                  from { background-position: 0 0; }
+                  to { background-position: 800px 0; }
+                }
+              `}} />
+            </div>
+
+            <div className="relative z-10 max-w-6xl mx-auto">
               <div className="flex items-center gap-4 mb-12">
                   <div className="h-1 bg-black flex-grow"></div>
-                  <h2 className="text-3xl font-black text-black uppercase text-center bg-[#A3E635] border-2 border-black px-6 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-1">
+                  <h2 className="text-3xl font-black text-black uppercase text-center bg-[#3B82F6] border-2 border-black px-6 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-1 rounded-lg">
                     Your Gallery
                   </h2>
                   <div className="h-1 bg-black flex-grow"></div>
@@ -1474,29 +1735,79 @@ function UploadPageContent() {
                   {uploadHistory.map((record) => (
                     <div 
                       key={record.id} 
-                      className="bg-white border-2 border-black rounded-xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all duration-300 p-6"
+                      className="bg-white border-2 border-black rounded-xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col"
                     >
-                      <div className="flex items-start justify-between mb-4">
-                         <div className="bg-gray-100 border-2 border-black rounded-lg p-3">
-                            <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                         </div>
-                         <span className="text-xs font-bold bg-black text-white px-2 py-1 rounded">
-                            {formatDate(record.uploadedAt)}
-                         </span>
+                      {/* Image Section */}
+                      <div className="relative aspect-video w-full border-b-2 border-black bg-gray-100 group overflow-hidden">
+                          {record.stagedImageUrl ? (
+                              <>
+                                {/* Base Image (After / Staged) - Bottom Right */}
+                                <img 
+                                    src={record.stagedImageUrl} 
+                                    alt={`${record.style} ${record.roomType} Staged`}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                    loading="lazy"
+                                />
+                                
+                                {/* Overlay Image (Before / Original) - Top Left - diagonally clipped */}
+                                {record.originalImageUrl && (
+                                    <div 
+                                      className="absolute inset-0 w-full h-full pointer-events-none transition-all duration-700 ease-in-out [clip-path:polygon(0_0,100%_0,0_100%)] group-hover:[clip-path:polygon(0_0,0_0,0_100%)]"
+                                    >
+                                       <img 
+                                           src={record.originalImageUrl} 
+                                           alt="Original Room"
+                                           className="absolute inset-0 w-full h-full object-cover"
+                                           loading="lazy"
+                                       />
+                                    </div>
+                                )}
+                              </>
+                          ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                              </div>
+                          )}
+                          
+                          {/* Hover Overlay with View Button */}
+                           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10">
+                              {record.stagedImageUrl && (
+                                <button 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        const filename = `staging-ai-${record.roomType}-${record.style}-${record.id}.jpg`;
+                                        const downloadUrl = `/api/download?url=${encodeURIComponent(record.stagedImageUrl!)}&filename=${encodeURIComponent(filename)}`;
+                                        window.location.href = downloadUrl;
+                                    }}
+                                    className="bg-white text-black font-bold py-2 px-4 rounded-lg border-2 border-black transform scale-90 hover:scale-100 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Download
+                                </button>
+                              )}
+                          </div>
                       </div>
-                      
-                      <h3 className="font-bold text-xl text-black capitalize mb-1">
-                          {record.roomType?.replace('-', ' ')}
-                      </h3>
-                      <p className="text-sm font-medium text-gray-500 mb-4 capitalize">
-                          {record.style} Style
-                      </p>
-                      
-                       <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                           <div className="w-1/2 h-full bg-[#3B82F6]"></div>
-                       </div>
+
+                      {/* Content Section */}
+                      <div className="p-4 flex-grow flex flex-col justify-between">
+                          <div className="flex justify-between items-start mb-2">
+                              <div>
+                                  <h3 className="font-black text-lg text-black capitalize leading-tight mb-1">
+                                      {record.roomType?.replace('-', ' ')}
+                                  </h3>
+                                  <p className="text-sm font-medium text-gray-500 capitalize">
+                                      {record.style} Style
+                                  </p>
+                              </div>
+                              <span className="text-xs font-bold bg-[#A3E635] border border-black text-black px-2 py-1 rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] whitespace-nowrap ml-2">
+                                  {formatDate(record.uploadedAt)}
+                              </span>
+                          </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1506,6 +1817,12 @@ function UploadPageContent() {
 
         <Footer />
       </div>
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+        message="Free Limit Reached"
+      />
     </>
   );
 }
@@ -1522,6 +1839,8 @@ function UploadPageLoading() {
         </div>
       </div>
       <Footer />
+      
+
     </div>
   );
 }

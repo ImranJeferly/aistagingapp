@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, Timestamp, getCountFromServer } from 'firebase/firestore';
 
 export interface UserData {
   uid: string;
@@ -12,9 +12,21 @@ export interface UserData {
   createdAt?: Timestamp | { seconds: number; nanoseconds: number } | string;
   updatedAt?: Timestamp | { seconds: number; nanoseconds: number } | string;
   lastActive?: Timestamp | { seconds: number; nanoseconds: number } | string;
+  uploadCount?: number;
 }
 
 export const adminService = {
+  async getUserUploadCount(userId: string): Promise<number> {
+    try {
+      const coll = collection(db, 'users', userId, 'uploads');
+      const snapshot = await getCountFromServer(coll);
+      return snapshot.data().count;
+    } catch (e) {
+      console.warn(`Failed to get upload count for ${userId}`, e);
+      return 0;
+    }
+  },
+
   async getAllUsers(): Promise<UserData[]> {
     try {
       // Create a query against the users collection
@@ -24,13 +36,22 @@ export const adminService = {
       const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(usersQuery);
       
-      return snapshot.docs.map(doc => ({
+      const users = snapshot.docs.map(doc => ({
         uid: doc.id,
         ...doc.data()
       } as UserData));
+
+      // Parallel fetch counts (might be rate limited if many users, paging recommended in future)
+      const usersWithCounts = await Promise.all(users.map(async u => {
+         const count = await adminService.getUserUploadCount(u.uid);
+         return { ...u, uploadCount: count };
+      }));
+
+      return usersWithCounts;
     } catch (error) {
       console.error('Error fetching users:', error);
       throw error;
     }
   }
 };
+

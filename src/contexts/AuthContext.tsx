@@ -61,6 +61,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Track IP address and check for abuse
         try {
           const token = await user.getIdToken();
+
+          // Check for guest uploads to migrate
+          if (typeof window !== 'undefined') {
+             const guestSessionId = localStorage.getItem('guest_session_id');
+             if (guestSessionId) {
+                fetch('/api/user/migrate-guest-uploads', {
+                   method: 'POST',
+                   headers: {
+                       'Authorization': `Bearer ${token}`,
+                       'Content-Type': 'application/json'
+                   },
+                   body: JSON.stringify({ sessionId: guestSessionId })
+                }).then(async (res) => {
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        console.log(`Migrated ${data.count} guest uploads`);
+                        localStorage.removeItem('guest_session_id');
+                    }
+                }).catch(e => console.warn("Failed to migrate guest uploads", e));
+             }
+          }
+
           fetch('/api/auth/track-ip', {
             method: 'POST',
             headers: {

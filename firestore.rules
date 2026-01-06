@@ -29,10 +29,13 @@ service cloud.firestore {
       
       // User uploads subcollection - users can only access their own uploads
       match /uploads/{uploadId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if (request.auth != null && request.auth.uid == userId) || (request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com');
         allow create: if request.auth != null && request.auth.uid == userId;
       }
     }
+    
+    
+    
       // Helper function to detect server-side requests
     function isServerRequest() {
       // In production: only allow authenticated requests OR server admin
@@ -58,6 +61,7 @@ service cloud.firestore {
                      && request.resource.data.userId == request.auth.uid;
       }    }
     
+    
     // Usage stats collection - users can only read/write their own usage data
     match /usage-stats/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -70,6 +74,18 @@ service cloud.firestore {
     match /blogs/{blogId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com';
+    }
+    
+        // --- Guest Uploads (Admin + Public Explore) ---
+    match /guest_uploads/{uploadId} {
+       allow write: if request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com';
+       allow read: if (request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com') || resource.data.exploreStatus == 'approved';
+    }
+
+    // --- Upload Collection Group Query (Admin + Public Explore) ---
+    match /{path=**}/uploads/{uploadId} {
+       allow read: if (request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com') || resource.data.exploreStatus == 'approved';
+       allow write: if request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com';
     }
 
     // Reviews collection - Public Read, Admin Write

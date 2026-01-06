@@ -8,7 +8,8 @@ import {
   orderBy, 
   limit,
   Timestamp,
-  where
+  where,
+  collectionGroup
 } from "firebase/firestore";
 
 export type ExploreStatus = 'pending' | 'approved' | 'rejected';
@@ -22,27 +23,79 @@ export interface StagedImage {
   designStyle?: string;
   createdAt: Timestamp | Date; // handle both for flexibility
   exploreStatus?: ExploreStatus;
-  userEmail?: string; // If we denormalize this, otherwise we might need to fetch user
+  userEmail?: string;
   userName?: string;
+  isGuest?: boolean;
+  refPath: string;
 }
 
 export const exploreService = {
-  // Get all staged images for admin (with pagination limit ideally, but simple for now)
-  getAllStagedImages: async (limitCount = 50): Promise<StagedImage[]> => {
+  // Get all staged images for admin
+  getAllStagedImages: async (limitCount = 100): Promise<StagedImage[]> => {
     try {
-      const q = query(
-        collection(db, "staged-images"),
-        orderBy("createdAt", "desc"),
+      // 1. Fetch User Uploads (using Collection Group)
+      const userUploadsQuery = query(
+        collectionGroup(db, "uploads"),
+        orderBy("uploadedAt", "desc"),
         limit(limitCount)
       );
       
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        // Ensure exploreStatus is set
-        exploreStatus: doc.data().exploreStatus || 'pending'
-      } as StagedImage));
+      // 2. Fetch Guest Uploads
+      const guestUploadsQuery = query(
+        collection(db, "guest_uploads"),
+        orderBy("uploadedAt", "desc"),
+        limit(limitCount)
+      );
+
+      const [userSnapshot, guestSnapshot] = await Promise.all([
+        getDocs(userUploadsQuery),
+        getDocs(guestUploadsQuery)
+      ]);
+
+      const userImages = userSnapshot.docs.map(doc => {
+          const data = doc.data();
+          let created = data.uploadedAt;
+          // Handle loose timestamp types
+          if (!created && data.createdAt) created = data.createdAt;
+
+          return {
+            id: doc.id,
+            userId: data.userId,
+            imageUrl: data.stagedImageUrl,
+            originalImageUrl: data.originalImageUrl,
+            roomType: data.roomType,
+            designStyle: data.style,
+            createdAt: created,
+            exploreStatus: data.exploreStatus || 'pending',
+            isGuest: false,
+            refPath: doc.ref.path
+          } as StagedImage;
+      });
+
+      const guestImages = guestSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: 'Guest', 
+            imageUrl: data.stagedImageUrl,
+            originalImageUrl: data.originalImageUrl,
+            roomType: data.roomType,
+            designStyle: data.style,
+            createdAt: data.uploadedAt,
+            exploreStatus: data.exploreStatus || 'pending',
+            isGuest: true,
+            refPath: doc.ref.path
+          } as StagedImage;
+      });
+
+      // Merge and Sort
+      const allImages = [...userImages, ...guestImages].sort((a, b) => {
+         const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : (a.createdAt as any).seconds * 1000 || 0;
+         const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : (b.createdAt as any).seconds * 1000 || 0;
+         return dateB - dateA;
+      });
+
+      return allImages.slice(0, limitCount);
     } catch (error) {
       console.error("Error fetching staged images:", error);
       return [];
@@ -52,38 +105,153 @@ export const exploreService = {
   // Get specific status
   getStagedImagesByStatus: async (status: ExploreStatus, limitCount = 50): Promise<StagedImage[]> => {
     try {
-        // Note: This requires an index if combining orderBy and where
-        // For now sorting client side if index is missing might be safer if we encounter errors, 
-        // but let's try strict query first.
-      const q = query(
-        collection(db, "staged-images"),
+      // 1. User Uploads with Status
+      const userQ = query(
+        collectionGroup(db, "uploads"),
         where("exploreStatus", "==", status),
-        orderBy("createdAt", "desc"),
+        orderBy("uploadedAt", "desc"),
         limit(limitCount)
       );
-      
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as StagedImage));
+
+      // 2. Guest Uploads with Status
+      const guestQ = query(
+        collection(db, "guest_uploads"),
+        where("exploreStatus", "==", status),
+        orderBy("uploadedAt", "desc"),
+        limit(limitCount)
+      );
+
+      const [userSnapshot, guestSnapshot] = await Promise.all([
+        getDocs(userQ),
+        getDocs(guestQ)
+      ]);
+
+      const userImages = userSnapshot.docs.map(doc => {
+          const data = doc.data();
+          let created = data.uploadedAt;
+          if (!created && data.createdAt) created = data.createdAt;
+
+          return {
+            id: doc.id,
+            userId: data.userId,
+            imageUrl: data.stagedImageUrl,
+            originalImageUrl: data.originalImageUrl,
+            createdAt: created,
+            exploreStatus: data.exploreStatus || 'pending',
+            isGuest: false,
+            refPath: doc.ref.path,
+            userName: data.userName
+          } as StagedImage;
+      });
+
+      const guestImages = guestSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: 'Guest',
+            imageUrl: data.stagedImageUrl,
+            originalImageUrl: data.originalImageUrl,
+            createdAt: data.uploadedAt,
+            exploreStatus: data.exploreStatus || 'pending',
+            isGuest: true,
+            refPath: doc.ref.path,
+            userName: 'Guest User'
+          } as StagedImage;
+      });
+
+      // Merge and sort
+      const allImages = [...userImages, ...guestImages].sort((a, b) => {
+         const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : (a.createdAt as any).seconds * 1000 || 0;
+         const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : (b.createdAt as any).seconds * 1000 || 0;
+         return dateB - dateA;
+      });
+
+      return allImages.slice(0, limitCount);
     } catch (error) {
       console.error(`Error fetching ${status} images:`, error);
       return [];
     }
   },
 
-  updateExploreStatus: async (imageId: string, status: ExploreStatus) => {
+  getPublicImageById: async (id: string): Promise<StagedImage | null> => {
     try {
-      const imageRef = doc(db, "staged-images", imageId);
+      // 1. Check Guest Uploads first (Direct lookup is cheap)
+      const guestRef = doc(db, 'guest_uploads', id);
+      const guestSnap = await getDocs(query(collection(db, 'guest_uploads'), where('__name__', '==', id))); // fallback query if doc() fails auth? no, doc read is fine.
+      // Actually standard getDoc is faster
+      const mainGuestSnap = await import('firebase/firestore').then(mod => mod.getDoc(guestRef));
+      
+      if (mainGuestSnap.exists()) {
+        const data = mainGuestSnap.data();
+        if (data.exploreStatus === 'approved') {
+             let created = data.uploadedAt;
+             if (!created && data.createdAt) created = data.createdAt;
+             return {
+                id: mainGuestSnap.id,
+                userId: 'Guest',
+                imageUrl: data.stagedImageUrl,
+                originalImageUrl: data.originalImageUrl,
+                createdAt: created,
+                exploreStatus: data.exploreStatus,
+                isGuest: true,
+                refPath: mainGuestSnap.ref.path,
+                userName: 'Guest User',
+                roomType: data.roomType,
+                designStyle: data.style
+             } as StagedImage;
+        }
+      }
+
+      // 2. Check User Uploads via Collection Group
+      // Note: This requires the collection group index we just made + documentId()
+      const { documentId } = await import('firebase/firestore');
+      const userQ = query(
+        collectionGroup(db, 'uploads'),
+        where(documentId(), '==', id),
+        limit(1)
+      );
+      
+      const userSnap = await getDocs(userQ);
+      if (!userSnap.empty) {
+        const doc = userSnap.docs[0];
+        const data = doc.data();
+        
+        if (data.exploreStatus === 'approved') {
+            let created = data.uploadedAt;
+            if (!created && data.createdAt) created = data.createdAt;
+            return {
+                id: doc.id,
+                userId: data.userId,
+                imageUrl: data.stagedImageUrl,
+                originalImageUrl: data.originalImageUrl,
+                createdAt: created,
+                exploreStatus: data.exploreStatus,
+                isGuest: false,
+                refPath: doc.ref.path,
+                userName: data.userName,
+                roomType: data.roomType,
+                designStyle: data.style
+             } as StagedImage;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error fetching public image details:", error);
+      return null;
+    }
+  },
+
+  updateExploreStatus: async (refPath: string, status: ExploreStatus) => {
+    try {
+      if (!refPath) throw new Error("Missing reference path for update");
+      const imageRef = doc(db, refPath);
       await updateDoc(imageRef, {
         exploreStatus: status,
-        updatedAt: Timestamp.now()
       });
-      return true;
     } catch (error) {
-      console.error("Error updating explore status:", error);
-      throw error;
+       console.error("Error updating status:", error);
+       throw error;
     }
   }
 };

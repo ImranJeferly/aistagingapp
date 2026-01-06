@@ -14,7 +14,7 @@ import { getCurrentPlan } from '../services/pricingService';
 export default function Navigation() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showPromo, setShowPromo] = useState(true);
+  // const [showPromo, setShowPromo] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, logout, user, userData, isLoading: authLoading } = useAuth();
   const { remainingUploads, totalUploads, isLimitReached, isLoading, userTier } = useUploadLimit();
@@ -62,7 +62,7 @@ export default function Navigation() {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
       setIsScrolled(scrollPosition > 20);
-      setShowPromo(scrollPosition <= 20);
+      // setShowPromo(scrollPosition <= 20);
     };
 
     // Initial check
@@ -100,37 +100,9 @@ export default function Navigation() {
 
   return (
     <>
-      {/* Promo Banner */}
-      <div 
-        className={`fixed top-0 left-0 right-0 z-[60] bg-[#FF90E8] border-b-2 border-black text-black overflow-hidden py-2.5 transition-transform duration-500 ease-in-out ${
-          showPromo && pathname !== '/upload' && pathname !== '/profile' && !pathname?.startsWith('/blogs') && !isMobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
-        }`}
-      >
-        <div className="flex items-center w-full">
-          <div className="whitespace-nowrap animate-marquee flex items-center shrink-0">
-            {[...Array(8)].map((_, i) => (
-              <span key={i} className="mx-6 font-black text-sm tracking-wide flex items-center gap-2 font-brand">
-                <span>ENJOY 15% OFF FOR A LIMITED TIME!</span>
-                <span className="bg-black text-white px-2 py-0.5 rounded transform -rotate-2 border border-black shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">CODE: LAUNCH15</span>
-              </span>
-            ))}
-          </div>
-          <div className="whitespace-nowrap animate-marquee flex items-center shrink-0">
-            {[...Array(8)].map((_, i) => (
-              <span key={`clone-${i}`} className="mx-6 font-black text-sm tracking-wide flex items-center gap-2 font-brand">
-                <span>ENJOY 15% OFF FOR A LIMITED TIME!</span>
-                <span className="bg-black text-white px-2 py-0.5 rounded transform -rotate-2 border border-black shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">CODE: LAUNCH15</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <header className={`fixed left-0 right-0 z-50 flex items-center justify-between transition-all duration-500 ease-in-out ${
-        showPromo && pathname !== '/upload' && pathname !== '/profile' && !pathname?.startsWith('/blogs') && !isMobileMenuOpen ? 'top-11' : 'top-0'
-      } ${
+      <header className={`fixed left-0 right-0 z-50 flex items-center justify-between transition-all duration-500 ease-in-out top-0 ${
         isScrolled 
-          ? `${(pathname === '/pricing' || (pathname?.startsWith('/blogs') && pathname !== '/blogs')) ? 'bg-[#E0F2FE]/90 border-blue-200' : 'bg-[#FFFCF5]/80 border-gray-200'} backdrop-blur-md border-b px-4 sm:px-6 py-3 sm:py-4`
+          ? `${(pathname === '/pricing' || pathname?.startsWith('/explore') || (pathname?.startsWith('/blogs') && pathname !== '/blogs')) ? 'bg-[#E0F2FE]/90 border-blue-200' : 'bg-[#FFFCF5]/80 border-gray-200'} backdrop-blur-md border-b px-4 sm:px-6 py-3 sm:py-4`
           : 'bg-transparent border-b border-transparent px-4 sm:px-8 md:px-12 py-6 sm:py-8'
       }`}>      {/* Logo */}
       <Link href="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity relative z-[60]">
