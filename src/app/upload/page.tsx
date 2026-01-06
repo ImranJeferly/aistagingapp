@@ -32,6 +32,8 @@ function isPointInPolygon(point: {x: number, y: number}, vs: {x: number, y: numb
 const PEN_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNyAzYTIuODI4IDIuODI4IDAgMSAxIDQgNEw3LjUgMjAuNSAyIDIybDEuNS01LjVMMTcgM3oiPjwvcGF0aD48L3N2Zz4=") 0 24, auto`;
 const PLUS_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJzaGFkb3ciPjxmZURyb3BTaGFkb3cgZHg9IjAiIGR5PSIxIiBzdGREZXZpYXRpb249IjEiIGZsb29kLW9wYWNpdHk9IjAuNSIvPjwvZmlsdGVyPjxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMyIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtZGFzaGFycmF5PSI0IDMiIGZpbGw9InJnYmEoMCwwLDAsMC4xNSkiLz48cGF0aCBkPSJNMTYgOFYyNE04IDE2SDI0IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=") 16 16, crosshair`;
 
+import { submitUploadFeedback } from '@/services/uploadService';
+
 function UploadPageContent() {
   const { user } = useAuth();
   const { isLimitReached, refreshLimit, remainingUploads, usedUploads, totalUploads, userTier } = useUploadLimit();
@@ -41,6 +43,10 @@ function UploadPageContent() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
   const [stagedImageUrl, setStagedImageUrl] = useState<string | null>(null);
+  const [uploadedRecordId, setUploadedRecordId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<'thumbs-up' | 'thumbs-down' | null>(null);
+  const [complaintText, setComplaintText] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('');
@@ -570,7 +576,7 @@ function UploadPageContent() {
                 console.log("Staged image uploaded:", stagedStorageUrl);
 
                 // 3. Create Record
-                await addCompletedUploadRecord({
+                const recordId = await addCompletedUploadRecord({
                   userId: user.uid,
                   uploadedAt: Timestamp.now(),
                   imageSize: selectedFile.size,
@@ -581,6 +587,7 @@ function UploadPageContent() {
                   stagedImageUrl: stagedStorageUrl,
                   aiDescription: result.aiDescription
                 });
+                setUploadedRecordId(recordId);
                 console.log("Upload record created!");
 
                 // Refresh the upload history to show the new record
@@ -644,6 +651,10 @@ function UploadPageContent() {
     setPreviewUrl(null);
     setUploadResult(null);
     setStagedImageUrl(null);
+    setUploadedRecordId(null);
+    setFeedback(null);
+    setComplaintText('');
+    setFeedbackSubmitted(false);
     setSelectedStyle('');
     setSelectedRoomType('');
     setAdditionalPrompt('');
@@ -652,7 +663,25 @@ function UploadPageContent() {
   };
 
   const clearSelection = () => {
-    setShowClearConfirmation(true);
+    // If result is already shown (stagedImageUrl exists), we don't need a confirmation popup.
+    // The user wants the popup ("cancelation pops up") to NOT appear after results are done.
+    if (stagedImageUrl) {
+        performClear();
+    } else {
+        setShowClearConfirmation(true);
+    }
+  };
+
+  const handleFeedbackSubmit = async () => {
+    if (!user || !uploadedRecordId || !feedback) return;
+    
+    try {
+        await submitUploadFeedback(user.uid, uploadedRecordId, feedback, complaintText);
+        setFeedbackSubmitted(true);
+    } catch (e) {
+        console.error("Failed to submit feedback", e);
+        setError("Failed to submit feedback. Please try again.");
+    }
   };
 
   // Download function for the staged image
@@ -982,41 +1011,117 @@ function UploadPageContent() {
                   </div>
                </motion.div>
             ) : stagedImageUrl ? (
-                // Result View
-                <div className="max-w-4xl mx-auto bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="p-8 border-b-2 border-black bg-[#A3E635]/20">
-                         <div className="flex items-center justify-center gap-3 mb-2">
-                             <div className="bg-[#A3E635] text-black border-2 border-black p-2 rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                             </div>
-                             <h3 className="text-2xl font-black uppercase">Staging Complete</h3>
-                         </div>
-                    </div>
+                // Result View - Full Screen height, non-scrollable on desktop
+                <div className="w-full max-w-7xl mx-auto h-[calc(100vh-140px)] min-h-[600px] bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col md:flex-row">
                     
-                    <div className="p-8 space-y-8">
-                         <div className="relative rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-gray-100">
-                             <img src={stagedImageUrl} alt="Staged Result" className="w-full h-auto" />
-                         </div>
+                    {/* Left Side: Image Result (Takes strictly remaining space) */}
+                    <div className="flex-1 bg-gray-100 relative overflow-hidden flex items-center justify-center p-4">
+                        <div className="relative w-full h-full flex items-center justify-center">
+                            <img 
+                                src={stagedImageUrl} 
+                                alt="Staged Result" 
+                                className="max-w-full max-h-full object-contain rounded-lg shadow-lg border-2 border-black" 
+                            />
+                        </div>
+                        {/* Mobile Download/New Buttons floating at bottom if needed, or put them in right panel */}
+                    </div>
 
-                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    {/* Right Side: Actions & Feedback (Fixed width) */}
+                    <div className="w-full md:w-[400px] bg-white border-l-2 border-black flex flex-col h-full overflow-y-auto">
+                        {/* Header */}
+                        <div className="p-6 border-b-2 border-black bg-[#A3E635]/20">
+                             <div className="flex items-center gap-3">
+                                 <div className="bg-[#A3E635] text-black border-2 border-black p-2 rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                 </div>
+                                 <h3 className="text-2xl font-black uppercase">Staging Complete</h3>
+                             </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="p-6 space-y-4 border-b-2 border-black border-dashed">
                              <button
                                 onClick={downloadStagedImage}
-                                className="w-full sm:w-auto px-8 py-4 bg-[#F97316] text-white border-2 border-black font-bold uppercase rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2"
+                                className="w-full py-4 bg-[#F97316] text-white border-2 border-black font-bold uppercase rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2"
                               >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                 </svg>
-                                Download
+                                Download Image
                               </button>
                              <button
                                 onClick={clearSelection}
-                                className="w-full sm:w-auto px-8 py-4 bg-white text-black border-2 border-black font-bold uppercase rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                className="w-full py-4 bg-white text-black border-2 border-black font-bold uppercase rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
                               >
-                                Stage Another
+                                Stage Another Room
                               </button>
-                         </div>
+                        </div>
+
+                        {/* Feedback Section */}
+                        {user && uploadedRecordId && (
+                            <div className="p-6 flex-1 flex flex-col">
+                                <h4 className="font-black text-lg uppercase mb-4">Rate Result</h4>
+                                
+                                {feedbackSubmitted ? (
+                                    <div className="bg-green-50 border-2 border-green-500 rounded-xl p-6 text-center animate-pulse">
+                                        <p className="font-bold text-green-700">Thanks for your feedback!</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div className="flex gap-4 justify-center">
+                                            <button 
+                                                onClick={() => setFeedback('thumbs-up')}
+                                                className={`p-4 rounded-xl border-2 transition-all ${feedback === 'thumbs-up' ? 'bg-[#A3E635] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white border-gray-200 hover:border-black'}`}
+                                            >
+                                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                                </svg>
+                                            </button>
+                                            <button 
+                                                onClick={() => setFeedback('thumbs-down')}
+                                                className={`p-4 rounded-xl border-2 transition-all ${feedback === 'thumbs-down' ? 'bg-red-100 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white border-gray-200 hover:border-black'}`}
+                                            >
+                                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        {feedback === 'thumbs-down' && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                className="space-y-3"
+                                            >
+                                                <label className="text-sm font-bold block">What went wrong?</label>
+                                                <textarea
+                                                    value={complaintText}
+                                                    onChange={(e) => setComplaintText(e.target.value)}
+                                                    className="w-full p-3 border-2 border-black rounded-lg resize-none min-h-[100px]"
+                                                    placeholder="The furniture style didn't match..."
+                                                ></textarea>
+                                            </motion.div>
+                                        )}
+                                        
+                                        {feedback && (
+                                            <button 
+                                                onClick={handleFeedbackSubmit}
+                                                className="w-full py-3 bg-black text-white font-bold uppercase rounded-lg hover:opacity-80 transition-opacity"
+                                            >
+                                                Send Feedback
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {!user && stagedImageUrl && (
+                             <div className="p-6">
+                                <p className="text-sm text-gray-500 italic text-center">Sign in to save this result and leave feedback.</p>
+                             </div>
+                        )}
                     </div>
                 </div>
             ) : (

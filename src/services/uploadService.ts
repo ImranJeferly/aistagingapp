@@ -269,6 +269,25 @@ export const updateUserPlan = async (userId: string, newPlan: PricingTier): Prom
   }
 };
 
+export const submitUploadFeedback = async (
+  userId: string, 
+  uploadId: string, 
+  feedbackType: 'thumbs-up' | 'thumbs-down', 
+  complaint?: string
+): Promise<void> => {
+  try {
+    const uploadRef = doc(db, 'users', userId, 'uploads', uploadId);
+    await updateDoc(uploadRef, {
+      feedback: feedbackType,
+      feedbackComment: complaint || null,
+      feedbackSubmittedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    throw error;
+  }
+};
+
 // Test function to change a user's plan (useful for testing)
 export const setTestUserPlan = async (userId: string, plan: PricingTier): Promise<void> => {
   await updateUserPlan(userId, plan);
