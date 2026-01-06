@@ -14,83 +14,43 @@ interface FAQItem {
 const faqData: FAQItem[] = [
   {
     question: "What is AI staging and how does it work?",
-    answer: "AI staging uses artificial intelligence to digitally furnish and decorate empty rooms in real estate photos. Our advanced AI analyzes your room photos and automatically adds furniture, decor, and styling to make spaces look more appealing to potential buyers or renters."
-  },
-  {
-    question: "How long does AI staging take?",
-    answer: "Our AI staging process is incredibly fast! Most images are processed and staged within 30 seconds. You'll receive your professionally staged photos almost instantly after uploading."
-  },
-  {
-    question: "What types of rooms can be staged with AI?",
-    answer: "We support all major room types including living rooms, bedrooms, kitchens, dining rooms, bathrooms, offices, basements, and outdoor spaces. Our AI is trained on thousands of interior design styles and can adapt to any space."
+    answer: "AI staging uses advanced artificial intelligence to digitally furnish empty rooms in real estate photos. Our technology analyzes your room's dimensions and lighting to automatically place realistic furniture and decor, transforming vacant spaces into beautiful, inviting homes in seconds."
   },
   {
     question: "Is AI staging really free?",
-    answer: "Yes! We're currently in beta and offering completely free AI staging with up to 3 images per day. No credit card required, no hidden fees, and no watermarks on your staged photos."
+    answer: "Yes! We offer a Free Tier that includes 5 high-quality staged images so you can experience the magic of AI staging at no cost. For professional real estate agents and high-volume users, we offer affordable monthly plans starting at just $15/month."
   },
   {
-    question: "How does AI staging compare to traditional staging?",
-    answer: "AI staging is 95% faster and 90% more cost-effective than traditional staging. While traditional staging can cost $2,000-$5,000 and take weeks, AI staging costs $0 and takes 30 seconds, making it perfect for any budget."
+    question: "How long does the process take?",
+    answer: "Our AI is incredibly fast! While traditional virtual staging takes days, our AI processes and stages your images in about 30 seconds. You can stage an entire home in minutes and have listing-ready photos instantly."
   },
   {
-    question: "What image formats and sizes are supported?",
-    answer: "We support JPG, PNG, and WEBP formats. Images should be at least 512x512 pixels for best results. We can process images up to 4K resolution and will output high-quality staged photos perfect for listings."
+    question: "Can I choose different interior design styles?",
+    answer: "Absolutely! You can select from a variety of popular interior design styles including Modern, Contemporary, Scandinavian, Traditional, Industrial, and Bohemian. This allows you to tailor the look to match the property's architecture and target buyer."
   },
   {
-    question: "Can I choose specific furniture styles for my staged rooms?",
-    answer: "Our AI automatically selects the most appropriate furniture and decor based on the room type, lighting, and architectural features. We use modern, contemporary styles that appeal to the widest range of potential buyers."
+    question: "What is the difference between the Free and Pro plans?",
+    answer: "The Free plan is perfect for trying out the service with 5 lifetime images. Our Pro plans unlock monthly allowances (up to 50 images/month), access to 4K High-Quality resolution, priority processing, and commercial usage rights for all generated images."
   },
   {
-    question: "How accurate is AI staging compared to real furniture?",
-    answer: "Our AI staging is photorealistic and indistinguishable from real furniture in photos. The AI considers lighting, shadows, perspective, and room proportions to create incredibly realistic staged images."
+    question: "Do I own the commercial rights to the images?",
+    answer: "Yes, you retain full ownership and commercial rights to all images you generate on our platform. You are free to use them on MLS, Zillow, social media, and all marketing materials without any additional fees or royalties."
   },
   {
-    question: "Can AI staging help sell my property faster?",
-    answer: "Studies show that staged homes sell 73% faster than unstaged homes. AI staging provides the same visual appeal as traditional staging, helping potential buyers envision themselves in the space and increasing interest in your property."
+    question: "What types of rooms can be staged?",
+    answer: "We support all major room types including Living Rooms, Bedrooms, Kitchens, Dining Rooms, Home Offices, and even Outdoor spaces like Patios. Our AI understands the specific furniture requirements for each room type."
   },
   {
-    question: "Do I own the rights to my AI staged images?",
-    answer: "Yes! You retain full ownership and commercial rights to all staged images. You can use them in listings, marketing materials, social media, and any other promotional purposes without restrictions."
+    question: "What are the image requirements?",
+    answer: "For best results, upload clear, well-lit photos in JPG, PNG, or WEBP format. We support resolutions up to 4K. Our AI works best with empty rooms, but can also handle rooms with existing furniture (though results vary)."
   },
   {
-    question: "What if I'm not satisfied with the AI staging results?",
-    answer: "While our AI is highly accurate, if you're not satisfied with the results, you can upload a different angle or lighting of the same room, or try staging a different room. We're constantly improving our AI to deliver better results."
+    question: "Is it cheaper than traditional virtual staging?",
+    answer: "Significantly! Traditional manual virtual staging can cost $30-$100 per photo and takes days. Our AI staging costs less than $1 per image on paid plans and is completed in seconds, saving you thousands of dollars and hours of time."
   },
   {
-    question: "Can real estate agents use AI staging for multiple clients?",
-    answer: "Absolutely! Real estate agents love our platform for quickly staging multiple properties. With 3 free images per day, agents can efficiently stage key rooms across different listings to maximize their marketing impact."
-  },
-  {
-    question: "Is my uploaded data secure and private?",
-    answer: "Yes, we take privacy seriously. Your uploaded images are processed securely and automatically deleted from our servers after 30 days. We never share your images or data with third parties."
-  },
-  {
-    question: "Can AI staging work with poorly lit or low-quality photos?",
-    answer: "Our AI works best with well-lit, clear photos, but it can enhance and stage even challenging images. For optimal results, we recommend bright, natural lighting and multiple angles of each room."
-  },
-  {
-    question: "Will there be paid plans in the future?",
-    answer: "We may introduce premium features in the future, but our core AI staging service will always remain free. Any future paid plans would include additional features like bulk processing, priority support, or advanced customization options."
-  },
-  {
-    question: "Can I stage the same room multiple times with different styles?",
-    answer: "Each upload is processed independently, so you can upload the same room multiple times to see different staging variations. This helps you find the perfect look for your property marketing."
-  },
-  {
-    question: "Does AI staging work for commercial properties?",
-    answer: "Yes! Our AI can stage office spaces, retail locations, restaurants, and other commercial properties. The AI adapts to create appropriate professional environments that help commercial properties attract tenants."
-  },
-  {
-    question: "How does AI staging help with property photography?",
-    answer: "AI staging transforms empty, cold spaces into warm, inviting homes in photos. This dramatically improves your property photography without the cost and logistics of traditional staging, making every listing photo more compelling."
-  },
-  {
-    question: "Can I use AI staged photos on MLS listings?",
-    answer: "Yes, AI staged photos can be used on MLS listings, Zillow, Realtor.com, and other platforms. Many agents note when photos are virtually staged to maintain transparency with potential buyers."
-  },
-  {
-    question: "What makes your AI staging better than competitors?",
-    answer: "Our AI staging offers the perfect combination of speed (30 seconds), quality (photorealistic results), price (completely free), and convenience (no account required). Plus, we support all room types with no watermarks or restrictions."
+    question: "Can I use these photos for real estate listings?",
+    answer: "Yes, our AI-staged photos are specifically designed for real estate marketing. They are realistic, high-resolution, and formatted perfectly for MLS listings and property marketing platforms."
   }
 ];
 
