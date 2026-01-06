@@ -77,6 +77,9 @@ export async function POST(request: NextRequest) {
     
     const config = {
       responseModalities: ['IMAGE', 'TEXT'], // Requesting Image!
+      imageConfig: {
+        imageSize: '2K', // Requesting 3K resolution
+      },
     };
 
     console.log(`Calling Nano Banana Pro (${modelName})...`);

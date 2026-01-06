@@ -278,7 +278,7 @@ function UploadPageContent() {
                 imgMeasure.onload = () => {
                     const canvas = document.createElement('canvas');
                     // Use a reasonable max width for AI to prevent huge payloads
-                    const MAX_WIDTH = 1536; 
+                    const MAX_WIDTH = 2048; 
                     let w = imgMeasure.width;
                     let h = imgMeasure.height;
                     
@@ -401,7 +401,7 @@ function UploadPageContent() {
 
       // 1. Prepare Original Image (Compressed)
       console.log(`Processing original file size: ${selectedFile.size} bytes`);
-      const originalBlob = await compressImage(selectedFile, 1536, 0.85); // High quality
+      const originalBlob = await compressImage(selectedFile, 2048, 0.85); // High quality
       const originalBase64 = await fileToBase64(originalBlob);
       console.log("Original image processed");
       
