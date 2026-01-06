@@ -11,9 +11,31 @@ export const useUploadLimit = () => {
   
   const fetchUploadLimits = async () => {
     if (!user || !isAuthenticated) {
-      setRemainingUploads({ daily: 999, monthly: 5 });
-      setTotalLimits({ daily: 999, monthly: 5 });
-      setUserTier('free');
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/guest/check-limit');
+        if (res.ok) {
+             const data = await res.json();
+             // Guest limit is 1
+             const limit = 1;
+             const used = data.count || 0;
+             const remaining = Math.max(0, limit - used);
+             
+             setRemainingUploads({ daily: remaining, monthly: remaining });
+             setTotalLimits({ daily: limit, monthly: limit });
+        } else {
+             // If API fails, default to 1 (allow upload)
+             setRemainingUploads({ daily: 1, monthly: 1 });
+             setTotalLimits({ daily: 1, monthly: 1 });
+        }
+      } catch (error) {
+         console.warn("Failed to check guest limit", error);
+         setRemainingUploads({ daily: 1, monthly: 1 });
+         setTotalLimits({ daily: 1, monthly: 1 });
+      } finally {
+         setUserTier('free');
+         setIsLoading(false);
+      }
       return;
     }
 

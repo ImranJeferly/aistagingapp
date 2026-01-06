@@ -43,17 +43,23 @@ export async function POST(request: NextRequest) {
       const ip = forwardedFor || realIp || '127.0.0.1';
       const clientIp = ip.split(',')[0].trim();
 
-      if (adminDb) {
-         const snapshot = await adminDb.collection('guest_uploads')
-           .where('ipAddress', '==', clientIp)
-           .get();
+      if (!adminDb) {
+         console.error('[API] Critical: adminDb not initialized for Guest request');
+         return NextResponse.json(
+           { error: 'Service configuration error. Please try again later.' },
+           { status: 503 }
+         );
+      }
 
-         if (!snapshot.empty) {
-           return NextResponse.json(
-             { error: 'Free limit reached. Please log in to continue creating.' },
-             { status: 429 } 
-           );
-         }
+      const snapshot = await adminDb.collection('guest_uploads')
+        .where('ipAddress', '==', clientIp)
+        .get();
+
+      if (!snapshot.empty) {
+        return NextResponse.json(
+          { error: 'Free limit reached. Please log in to continue creating.' },
+          { status: 429 } 
+        );
       }
     }
     // ----------------------------

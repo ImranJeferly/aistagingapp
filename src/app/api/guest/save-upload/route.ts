@@ -14,8 +14,15 @@ export async function POST(request: NextRequest) {
      console.log(`[Guest Save] Attempting save for IP: ${clientIp}, Session: ${sessionId}`);
 
      if (!adminDb) {
-        console.error('[Guest Save] adminDb is not initialized');
+        // This log will appear in Vercel/Server logs, aiding debugging without exposing secrets to client
+        console.error('[Guest Save] Database connection failed. Possible causes: Missing FIREBASE_SERVICE_ACCOUNT keys in environment variables.');
         return NextResponse.json({ error: 'Server configuration error - DB not connected' }, { status: 500 });
+     }
+
+     // Validate payload
+     if (!originalImageUrl || !stagedImageUrl) {
+        console.error('[Guest Save] Missing image URLs');
+        return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
      }
 
      // Double check limit

@@ -391,6 +391,13 @@ function UploadPageContent() {
           }
           return;
         }
+    } else {
+        // Guest limit check
+        if (isLimitReached) {
+            setError('Guest upload limit reached. Please sign in to continue.');
+            setAuthModalOpen(true);
+            return;
+        }
     }
     
     setError(null);
