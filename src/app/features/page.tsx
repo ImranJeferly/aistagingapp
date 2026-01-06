@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import InteractiveFeatureShowcase from '../../components/InteractiveFeatureShowcase';
@@ -57,6 +58,7 @@ export default function FeaturesPage() {
   const cardsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
     const tl = gsap.timeline({ defaults: { ease: "back.out(1.7)", duration: 1 } });
 
     tl.fromTo(headerRef.current,
@@ -71,7 +73,7 @@ export default function FeaturesPage() {
     );
 
     if (cardsRef.current) {
-      gsap.fromTo(cardsRef.current.children,
+      gsap.fromTo(Array.from(cardsRef.current.children),
         { y: 50, opacity: 0, scale: 0.9 },
         { 
           y: 0, 
@@ -93,7 +95,7 @@ export default function FeaturesPage() {
       
       <main className="pt-24 relative">
         {/* Decorative Background Elements */}
-        <WigglyLine 
+        {/* <WigglyLine 
           position={{ top: '10%', left: '-5%' }} 
           rotation="-15deg" 
           vectorNumber={1} 
@@ -106,7 +108,7 @@ export default function FeaturesPage() {
           vectorNumber={2} 
           opacity={0.6} 
           scale={0.6}
-        />
+        /> */}
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
           
