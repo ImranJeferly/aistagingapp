@@ -677,12 +677,24 @@ function UploadPageContent() {
   };
 
   const handleFeedbackSubmit = async () => {
-    if (!uploadedRecordId || !feedback) return;
+    console.log("Submit feedback clicked", { uploadedRecordId, feedback, user: user?.uid });
+    
+    if (!uploadedRecordId) {
+        console.error("No record ID found for feedback");
+        setError("Error: Could not find upload record. Please try regenerating.");
+        return;
+    }
+    if (!feedback) {
+        console.log("No feedback selected");
+        return;
+    }
     
     try {
         if (user) {
+            console.log("Submitting feedback for user:", user.uid);
             await submitUploadFeedback(user.uid, uploadedRecordId, feedback, complaintText);
         } else {
+            console.log("Submitting feedback for guest");
             // Guest feedback
             const res = await fetch('/api/guest/feedback', {
                 method: 'POST',
@@ -693,8 +705,13 @@ function UploadPageContent() {
                     complaint: complaintText
                 })
             });
-            if (!res.ok) throw new Error('Feedback API failed');
+            if (!res.ok) {
+                 const errText = await res.text();
+                 console.error("Guest feedback API failed:", errText);
+                 throw new Error('Feedback API failed: ' + errText);
+            }
         }
+        console.log("Feedback submitted successfully");
         setFeedbackSubmitted(true);
     } catch (e) {
         console.error("Failed to submit feedback", e);
