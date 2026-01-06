@@ -3,9 +3,24 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
 if (!getApps().length) {
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY
-    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-    : undefined;
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  // robust extraction of the private key
+  if (privateKey) {
+    // 1. Handle JSON stringified input (common in some configs)
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        try {
+            // Try processing as a string literal to handle escaped characters correctly
+            privateKey = JSON.parse(privateKey);
+        } catch (e) {
+            // Fallback: manual stripping if parse fails
+            privateKey = privateKey.slice(1, -1);
+        }
+    }
+
+    // 2. Handle literal \n sequences (often from .env files or clipboard)
+    privateKey = privateKey!.replace(/\\n/g, '\n');
+  }
 
   if (privateKey && process.env.FIREBASE_CLIENT_EMAIL) {
     try {
@@ -21,8 +36,6 @@ if (!getApps().length) {
       console.error('Firebase Admin initialization failed:', error);
     }
   } else {
-    // Fallback for build time or when keys aren't present
-    // This allows the app to build but runtime features needing admin will fail
     console.warn('Firebase Admin not initialized: Missing FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL');
   }
 }
