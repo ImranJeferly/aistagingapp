@@ -1443,9 +1443,9 @@ function UploadPageContent() {
                              <div className="pt-6">
                                 <button
                                   onClick={handleUpload}
-                                  disabled={isUploading || isLimitReached || !isFormValid}
+                                  disabled={isUploading || !isFormValid}
                                   className={`w-full py-5 font-black text-xl uppercase tracking-wider rounded-xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all ${
-                                    isFormValid && !isLimitReached && !isUploading
+                                    isFormValid && !isUploading
                                       ? 'bg-[#F97316] text-white hover:bg-[#EA580C] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
                                       : 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-400 shadow-none'
                                   }`}
@@ -1458,7 +1458,7 @@ function UploadPageContent() {
                                       </svg>
                                       Magic in progress...
                                     </span>
-                                  ) : isLimitReached ? 'Limit Reached' : 'Generate Stage'}
+                                  ) : 'Generate Stage'}
                                 </button>
                                 {!isFormValid && (
                                   <p className="text-center text-sm font-bold text-gray-400 mt-2">
