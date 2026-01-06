@@ -4,12 +4,31 @@ import { useAuth } from '../../contexts/AuthContext';
 import AuthGuard from '../../components/AuthGuard';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
-// import FloatingElement from '../../components/FloatingElement';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
 import { Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Point in polygon helper
+function isPointInPolygon(point: {x: number, y: number}, vs: {x: number, y: number}[]) {
+    var x = point.x, y = point.y;
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i].x, yi = vs[i].y;
+        var xj = vs[j].x, yj = vs[j].y;
+        
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+};
+
+// Optimized cursors using Base64 to ensure correct rendering without lag
+const PEN_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNyAzYTIuODI4IDIuODI4IDAgMSAxIDQgNEw3LjUgMjAuNSAyIDIybDEuNS01LjVMMTcgM3oiPjwvcGF0aD48L3N2Zz4=") 0 24, auto`;
+const PLUS_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJzaGFkb3ciPjxmZURyb3BTaGFkb3cgZHg9IjAiIGR5PSIxIiBzdGREZXZpYXRpb249IjEiIGZsb29kLW9wYWNpdHk9IjAuNSIvPjwvZmlsdGVyPjxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMyIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtZGFzaGFycmF5PSI0IDMiIGZpbGw9InJnYmEoMCwwLDAsMC4xNSkiLz48cGF0aCBkPSJNMTYgOFYyNE04IDE2SDI0IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=") 16 16, crosshair`;
 
 function UploadPageContent() {
   const { user } = useAuth();
@@ -28,6 +47,74 @@ function UploadPageContent() {
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  
+  const MARKER_COLORS = [
+    '#FACC15', // Yellow
+    '#A3E635', // Green
+    '#F97316', // Orange
+    '#3B82F6', // Blue
+    '#EC4899', // Pink
+    '#8B5CF6', // Purple
+    '#10B981', // Emerald
+    '#F43F5E', // Rose
+    '#06B6D4', // Cyan
+  ];
+
+  const [markerPositions, setMarkerPositions] = useState<{id: string, x: number, y: number, color: string, instruction?: string, referenceImage?: File | null, radiusPoints?: {x: number, y: number}[]}[]>([]);
+  // Removed mousePosition state to prevent lag
+  const [isHoveringImage, setIsHoveringImage] = useState(false);
+  const [isHoveringMarker, setIsHoveringMarker] = useState(false);
+  const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [drawingMarkerId, setDrawingMarkerId] = useState<string | null>(null);
+  const [isDrawingRadius, setIsDrawingRadius] = useState(false);
+  const [showLimitWarning, setShowLimitWarning] = useState(false);
+  const [showFileSizeWarning, setShowFileSizeWarning] = useState(false);
+  const [showRadiusError, setShowRadiusError] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const justFinishedDrawing = useRef(false);
+
+  // Drag handler
+  const handleMouseDown = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDraggingId(id);
+    setHoveredMarkerId(null);
+    setIsHoveringMarker(true);
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault(); // Prevent selection
+      const x = ((moveEvent.clientX - containerRect.left) / containerRect.width) * 100;
+      const y = ((moveEvent.clientY - containerRect.top) / containerRect.height) * 100;
+
+      const clampedX = Math.max(0, Math.min(100, x));
+      const clampedY = Math.max(0, Math.min(100, y));
+
+      setMarkerPositions(prev => prev.map(m =>
+        m.id === id ? { ...m, x: clampedX, y: clampedY } : m
+      ));
+    };
+
+    const handleMouseUp = () => {
+      setDraggingId(null);
+      setIsHoveringMarker(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Helper to update specific marker details
+  const updateMarker = (id: string, updates: Partial<typeof markerPositions[0]>) => {
+    setMarkerPositions(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+  };
 
   // Check for payment success
   useEffect(() => {
@@ -183,9 +270,108 @@ function UploadPageContent() {
       img.src = URL.createObjectURL(file);
     });
   };
-    const handleUpload = async () => {
-    if (!selectedFile || !user || !isFormValid) return;
+    const generateCompositeImage = async (): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            if (previewUrl && markerPositions.length > 0) {
+                console.log("Generating composite input for AI...");
+                const imgMeasure = new Image();
+                imgMeasure.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    // Use a reasonable max width for AI to prevent huge payloads
+                    const MAX_WIDTH = 1536; 
+                    let w = imgMeasure.width;
+                    let h = imgMeasure.height;
+                    
+                    if (w > MAX_WIDTH) {
+                        h = (h / w) * MAX_WIDTH;
+                        w = MAX_WIDTH;
+                    }
+                    
+                    canvas.width = w;
+                    canvas.height = h;
+                    
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        // Draw Background Image
+                        ctx.drawImage(imgMeasure, 0, 0, w, h);
 
+                        // Draw Markers & Radius on top
+                        markerPositions.forEach(marker => {
+                            if (marker.radiusPoints && marker.radiusPoints.length > 0) {
+                                ctx.beginPath();
+                                const startX = (marker.radiusPoints[0].x / 100) * w;
+                                const startY = (marker.radiusPoints[0].y / 100) * h;
+                                ctx.moveTo(startX, startY);
+                                for (let i = 1; i < marker.radiusPoints.length; i++) {
+                                    const px = (marker.radiusPoints[i].x / 100) * w;
+                                    const py = (marker.radiusPoints[i].y / 100) * h;
+                                    ctx.lineTo(px, py);
+                                }
+                                ctx.closePath();
+                                ctx.strokeStyle = marker.color;
+                                ctx.lineWidth = 6 * (w / 1024); // Scale line width relative to resolution
+                                ctx.setLineDash([]);
+                                ctx.stroke();
+                            }
+
+                            const cx = (marker.x / 100) * w;
+                            const cy = (marker.y / 100) * h;
+                            const r = 20 * (w / 1024); // Scale radius
+
+                            ctx.beginPath();
+                            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                            ctx.fillStyle = marker.color;
+                            ctx.fill();
+                            
+                            ctx.strokeStyle = 'black';
+                            ctx.lineWidth = 4 * (w / 1024);
+                            ctx.lineCap = 'round';
+                            ctx.beginPath();
+                            const s = 8 * (w / 1024);
+                            ctx.moveTo(cx - s, cy);
+                            ctx.lineTo(cx + s, cy);
+                            ctx.moveTo(cx, cy - s);
+                            ctx.lineTo(cx, cy + s);
+                            ctx.stroke();
+                        });
+
+                        canvas.toBlob((blob) => {
+                            if (blob) resolve(blob);
+                            else reject(new Error("Failed to create blob"));
+                        }, 'image/jpeg', 0.85);
+                    } else {
+                        reject(new Error("Failed to get canvas context"));
+                    }
+                };
+                imgMeasure.onerror = () => reject(new Error("Failed to load background image"));
+                imgMeasure.src = previewUrl;
+            } else if (selectedFile) {
+                // If no markers, just use original file (compressed)
+                 // We will handle this fallback in handleUpload or just resolve with original file logic
+                 // For now, reject to fallback
+                 reject(new Error("No markers to draw"));
+            } else {
+                 reject(new Error("No image data"));
+            }
+        });
+    };
+
+    const handleUpload = async () => {
+    console.log("Handle upload triggered");
+    
+    if (!selectedFile) {
+        console.log("No file selected");
+        return;
+    }
+    if (!user) {
+        console.log("No user logged in");
+        return;
+    }
+    if (!isFormValid) {
+        console.log("Form invalid");
+        return;
+    }
+    
     // Check if user can upload
     const canUpload = await canUserUpload(user.uid);
     if (!canUpload) {
@@ -200,32 +386,87 @@ function UploadPageContent() {
     
     setError(null);
     setIsUploading(true);
-    
-    try {
-      // Compress image before upload to avoid 413 errors
-      console.log(`Original file size: ${selectedFile.size} bytes`);
-      const compressedFile = await compressImage(selectedFile, 1024, 0.8);
-      
-      // Convert compressed image to base64 for OpenAI API
-      const base64Image = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(compressedFile);
-      });
+    console.log("Starting upload process...");
 
-      // Call OpenAI API for room analysis and staging
+    try {
+      // Helper to convert File/Blob to Base64
+      const fileToBase64 = (file: Blob): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+      };
+
+      // 1. Prepare Original Image (Compressed)
+      console.log(`Processing original file size: ${selectedFile.size} bytes`);
+      const originalBlob = await compressImage(selectedFile, 1536, 0.85); // High quality
+      const originalBase64 = await fileToBase64(originalBlob);
+      console.log("Original image processed");
+      
+      let maskedBase64: string | null = null;
+      let markersData: any[] = [];
+
+      // 2. Prepare Masked Image & Markers (if any)
+      if (markerPositions.length > 0) {
+          try {
+             // Generate the visual guide (image with burned-in points)
+             const compositeBlob = await generateCompositeImage();
+             maskedBase64 = await fileToBase64(compositeBlob);
+             
+             // Process individual markers referencing images
+             markersData = await Promise.all(markerPositions.map(async (m) => {
+                 let refImageBase64 = null;
+                 if (m.referenceImage) {
+                      // Compress reference images slightly to avoid massive payloads
+                      // Ideally we'd use compressImage here too but let's just convert for now 
+                      // or use a simpler compression if file is huge.
+                      // Using existing compressImage helper for consistency
+                      try {
+                        const compressedRef = await compressImage(m.referenceImage, 800, 0.8);
+                        refImageBase64 = await fileToBase64(compressedRef);
+                      } catch (e) {
+                        console.warn("Failed to compress ref image, using original", e);
+                        refImageBase64 = await fileToBase64(m.referenceImage);
+                      }
+                 }
+                 return {
+                     id: m.id,
+                     color: m.color,
+                     instruction: m.instruction,
+                     refImage: refImageBase64
+                 };
+             }));
+             
+             console.log(`Processed ${markersData.length} markers for AI context`);
+          } catch (e) {
+             console.warn("Failed to generate composite context:", e);
+             // Verify if we should abort or continue without markers
+             // Continuing with just original image...
+          }
+      }
+
+      // Call API with expanded payload
+      console.log("Sending request to API...");
       const response = await fetch('/api/stage-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          imageData: base64Image,
+          originalImage: originalBase64,  // Clean room
+          maskedImage: maskedBase64,      // Room + Points (if any)
+          markers: markersData,           // Detailed point metadata
           style: selectedStyle,
           roomType: selectedRoomType,
           additionalPrompt: additionalPrompt.trim() || undefined,
         }),
-      });      if (!response.ok) {
+      });
+
+      console.log("Response received:", response.status);
+
+      if (!response.ok) {
         let errorMessage = 'Failed to stage image';
         
         // Handle specific error codes
@@ -264,6 +505,12 @@ function UploadPageContent() {
         console.log('Setting staged image URL:', result.stagedImage.substring(0, 50) + '...');
         setStagedImageUrl(result.stagedImage); // API already returns data URL format
         
+        if (result.aiDescription) {
+             console.log("AI Description:", result.aiDescription);
+             // Optionally store this description in state if we want to display it
+             // For now just logging it as per instructions
+        }
+
         // Only create the upload record since the image was successfully generated
         await addCompletedUploadRecord({
           userId: user.uid,
@@ -299,6 +546,7 @@ function UploadPageContent() {
     setSelectedStyle('');
     setSelectedRoomType('');
     setAdditionalPrompt('');
+    setMarkerPositions([]);
   };  // Download function for the staged image
   const downloadStagedImage = () => {
     if (!stagedImageUrl) return;
@@ -324,439 +572,919 @@ function UploadPageContent() {
   };
 
   return (
-    <AuthGuard>      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-gray-100 overflow-hidden relative">
-        <Navigation />          {/* Floating Furniture Elements - Visible but safely positioned */}
-        {/* <FloatingElement 
-          position={{ top: '10rem', left: '3rem' }}
-          size="sm"
-          imageSrc="/lamp.png"
-          imageAlt="Upload property photos for AI virtual staging real estate marketing automation"
-          animationDelay="0s"
-          rotation="15deg"
-        />
+    <>
+      <div className="min-h-screen bg-[#FFFCF5] relative selection:bg-black selection:text-[#A3E635]">
+        <Navigation />
         
-        <FloatingElement 
-          position={{ top: '8rem', right: '6rem' }}
-          size="md"
-          imageSrc="/chair.png"
-          imageAlt="Transform empty rooms with AI home staging technology virtual furniture placement"
-          animationDelay="1.2s"
-          rotation="-10deg"
-        />
-
-        <FloatingElement 
-          position={{ bottom: '8rem', right: '3rem' }}
-          size="md"
-          imageSrc="/cactus.png"
-          imageAlt="Professional virtual staging increases property value real estate agent success"
-          animationDelay="3.5s"
-          rotation="-15deg"
-        />
-        
-        <FloatingElement 
-          position={{ top: '60%', left: '2rem' }}
-          size="xl"
-          imageSrc="/bed.png"
-          imageAlt="AI powered interior design software revolutionizes real estate photography staging"
-          animationDelay="4.2s"
-          blur={true}
-          rotation="10deg"
-        /> */}<main className="pt-20 pb-16">
-          <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.20)-theme(spacing.16))] p-4">
-            <div className="w-full max-w-4xl">              {/* Error Display */}
-              {error && (
-                <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                  {error}
-                </div>
-              )}              {/* Payment Success Notification */}
-              {showPaymentSuccess && (
-                <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Payment successful! Your plan has been upgraded and your new limits are now active.</span>
-                  </div>
-                  <button 
-                    onClick={() => setShowPaymentSuccess(false)}
-                    className="text-green-600 hover:text-green-800"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
-              {/* Daily Limit Status */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {userTier} Plan: {usedUploads} / {totalUploads} image{totalUploads > 1 ? 's' : ''} {userTier === 'free' ? 'total' : 'this month'}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    {remainingUploads > 0 ? (
-                      <span className="text-sm text-green-600 font-medium">
-                        {remainingUploads} remaining
-                      </span>
-                    ) : (                      <span className="text-sm text-red-600 font-medium">
-                        Limit Reached
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Progress Bar */}
-                <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      remainingUploads > 0 ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${(usedUploads / totalUploads) * 100}%` }}
-                  ></div>
-                </div>                {isLimitReached && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    {userTier === 'free' 
-                      ? 'Free tier includes 5 staged images total. Upgrade to a paid plan for monthly limits.'
-                      : `Your monthly limit resets on the 1st of next month. Consider upgrading for more images.`
+        <main className="pt-24 pb-16 px-4 relative z-10">
+          <motion.div 
+            layout 
+            className="mx-auto max-w-7xl transition-all duration-500 ease-out"
+          >
+            
+            {/* Header Section */}
+            <AnimatePresence mode="popLayout">
+              {!selectedFile && (
+                <motion.div 
+                  key="header-section"
+                  className="overflow-hidden"
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={{
+                    hidden: { opacity: 1, height: "auto", marginBottom: 48 },
+                    visible: { 
+                      opacity: 1, 
+                      height: "auto", 
+                      marginBottom: 48,
+                      transition: { 
+                        staggerChildren: 0.1,
+                        delayChildren: 0.1,
+                      } 
+                    },
+                    exit: { 
+                      opacity: 0, 
+                      height: 0, 
+                      marginBottom: 0, 
+                      transition: { 
+                        duration: 0.6, 
+                        ease: [0.04, 0.62, 0.23, 0.98],
+                        when: "beforeChildren" // Actually we want container to shrink regardless
+                      } 
                     }
-                  </p>
-                )}
-              </div>{/* Upload Card or Image Display */}
-              {!selectedFile ? (
-                /* Upload Card */
-                <div 
-                  className={`relative bg-white rounded-3xl shadow-2xl border-4 border-dashed transition-all duration-300 ${
+                  }}
+                >
+                  <div className="text-center py-6 px-2">
+                    <h1 className="font-brand text-[#1a1a1a] text-5xl md:text-6xl lg:text-7xl font-bold mb-6 max-w-5xl mx-auto leading-[1.1] tracking-tight flex flex-wrap justify-center items-center gap-3 md:gap-5">
+                      <div className="overflow-hidden">
+                        <motion.span 
+                          className="inline-block"
+                          variants={{
+                            hidden: { y: 60, opacity: 0, rotate: 10 },
+                            visible: { 
+                              y: 0, 
+                              opacity: 1, 
+                              rotate: 0, 
+                              transition: { type: "spring", stiffness: 100, damping: 10 } 
+                            },
+                            exit: { y: -40, opacity: 0, transition: { duration: 0.3 } }
+                          }}
+                        >
+                          Virtual
+                        </motion.span>
+                      </div>
+                      <div className="relative">
+                        <motion.span 
+                          className="inline-block bg-[#F97316] text-black px-4 md:px-6 py-1 rounded-md border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+                          variants={{
+                            hidden: { scale: 0, opacity: 0, rotate: 10 },
+                            visible: { 
+                              scale: 1, 
+                              opacity: 1, 
+                              rotate: -2, 
+                              transition: { type: "spring", stiffness: 200, damping: 15 } 
+                            },
+                            exit: { scale: 0, opacity: 0, transition: { duration: 0.3 } }
+                          }}
+                        >
+                          Staging
+                        </motion.span>
+                      </div>
+                    </h1>
+                    
+                    <motion.p 
+                      className="text-gray-700 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed font-medium"
+                      variants={{
+                        hidden: { y: 30, opacity: 0 },
+                        visible: { 
+                          y: 0, 
+                          opacity: 1, 
+                          transition: { duration: 0.6, ease: "easeOut" } 
+                        },
+                        exit: { opacity: 0, transition: { duration: 0.2 } }
+                      }}
+                    >
+                      Upload your empty room and let AI furnish it in seconds.
+                    </motion.p>
+
+                    {/* Limit Status - Minimal (Or Explore for Non-Auth) */}
+                    <motion.div 
+                      variants={{
+                        hidden: { opacity: 0, y: 20 },
+                        visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+                        exit: { opacity: 0, transition: { duration: 0.2 } }
+                      }}
+                      className="mt-8 max-w-md mx-auto text-left"
+                    >
+                      {user ? (
+                        <div className="bg-white border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center gap-4">
+                          <div className="shrink-0">
+                            <div className={`w-3 h-3 rounded-full border border-black ${remainingUploads > 0 ? 'bg-[#A3E635]' : 'bg-red-500'}`}></div>
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-end mb-1">
+                              <span className="font-bold text-xs uppercase tracking-wider">{userTier} Plan</span>
+                              <span className="font-mono text-xs font-bold text-gray-600">{usedUploads}/{totalUploads} Used</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-gray-100 border border-black rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full border-r border-black transition-all duration-500 ${remainingUploads > 0 ? 'bg-[#3B82F6]' : 'bg-red-500'}`}
+                                style={{ width: `${(usedUploads / totalUploads) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {isLimitReached && (
+                            <div className="shrink-0 text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200">
+                              Limit Reached
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <a href="/" className="block group">
+                          <div className="bg-white border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center gap-4 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all">
+                            <div className="shrink-0">
+                              <div className="w-10 h-10 rounded-lg bg-[#FACC15] border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover:rotate-12 transition-transform duration-300">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                              </div>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-black text-sm uppercase text-[#1a1a1a] tracking-wide">First Time Here?</span>
+                                <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                </svg>
+                              </div>
+                              <p className="text-xs font-bold text-gray-500 mt-0.5">See how our AI transforms rooms instantly</p>
+                            </div>
+                          </div>
+                        </a>
+                      )}
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className={`space-y-8 transition-all duration-500 ${selectedFile ? 'pt-12 md:pt-20' : ''}`}>
+            {/* Error Display */}
+            {error && (
+              <div className="p-4 bg-red-100 border-2 border-black text-red-700 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3">
+                <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-bold">{error}</span>
+              </div>
+            )}
+
+            {/* Payment Success */}
+            {showPaymentSuccess && (
+              <div className="p-4 bg-[#A3E635] border-2 border-black text-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-bold">Upgrade Successful! New limits active.</span>
+                </div>
+                <button onClick={() => setShowPaymentSuccess(false)} className="hover:bg-black/10 p-1 rounded-md transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+
+
+            {/* Main Upload/Form Area */}
+            {!selectedFile ? (
+               <motion.div  
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={{
+                    hidden: { y: 40, opacity: 0, scale: 0.95 },
+                    visible: { 
+                      y: 0, 
+                      opacity: 1, 
+                      scale: 1,
+                      transition: { 
+                        type: "spring", 
+                        stiffness: 100, 
+                        damping: 20,
+                        delay: 0.3 
+                      } 
+                    },
+                    exit: { 
+                      opacity: 0, 
+                      scale: 0.95, 
+                      transition: { duration: 0.2 } 
+                    }
+                  }}
+                  className={`w-full max-w-3xl mx-auto cursor-pointer group relative bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 overflow-hidden ${
                     isDragOver 
-                      ? 'border-blue-400 bg-blue-50' 
-                      : 'border-gray-300'
+                      ? 'bg-orange-50 scale-[1.01]' 
+                      : 'hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1'
                   }`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
+                  onClick={() => document.getElementById('file-upload')?.click()}
                 >
-                  <div className="p-12 md:p-20 text-center">
-                    {/* Upload State */}
-                    <div className="space-y-8">
-                      {/* Upload Icon */}
-                      <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
-                        <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                      </div>
+                  {/* Zig-zag Background Animation (Container Only) */}
+                  <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.08]">
+                    <div 
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 L 25 25 L 50 50 L 75 75 L 100 50' fill='none' stroke='%23F97316' stroke-width='40' stroke-linecap='square'/%3E%3C/svg%3E")`,
+                        backgroundSize: '160px 160px',
+                        animation: 'zigZagScroll 20s linear infinite'
+                      }}
+                    />
+                    <style dangerouslySetInnerHTML={{__html: `
+                      @keyframes zigZagScroll {
+                        from { background-position: 0 0; }
+                        to { background-position: 160px 160px; }
+                      }
+                    `}} />
+                  </div>
 
-                      {/* Main Text */}
-                      <div>
-                        <h3 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-4">
-                          Upload Your Image
-                        </h3>
-                        <p className="text-lg text-gray-600 mb-8">
-                          Drag and drop your image here, or click to browse
-                        </p>
-                      </div>
+                  {/* Blueprint Grid Background */}
+                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+                       style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+                  </div>
 
-                      {/* Upload Button */}
-                      <div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                          id="file-upload"
-                        />
-                        <label
-                          htmlFor="file-upload"
-                          className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-lg font-semibold rounded-full hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg cursor-pointer"
-                        >
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Choose Image
-                        </label>
-                      </div>
+                  {/* Corner Accents */}
+                  <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-black rounded-tl-xl m-4 opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-black rounded-tr-xl m-4 opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-black rounded-bl-xl m-4 opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 border-black rounded-br-xl m-4 opacity-20 group-hover:opacity-100 transition-opacity"></div>
 
-                      {/* Drop Text */}
-                      <div>
-                        <p className="text-xl text-gray-600 mb-2">or drop a file,</p>
-                        <p className="text-base text-gray-500">paste image or URL</p>
-                      </div>
-
-                      {/* Supported Formats */}
-                      <div className="text-sm text-gray-400">
-                        <p>Supports: JPG, PNG, WEBP • Max size: 10MB</p>
-                      </div>
-                    </div>
-
-                    {/* Drag Overlay */}
-                    {isDragOver && (
-                      <div className="absolute inset-0 bg-blue-600/10 border-4 border-blue-400 rounded-3xl flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="w-16 h-16 mx-auto bg-blue-600 rounded-full flex items-center justify-center mb-4">
-                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  <div className="p-8 md:p-16 text-center flex flex-col items-center justify-center min-h-[400px] relative z-10">
+                     
+                     {/* Floating Upload Icon */}
+                     <div className={`relative mb-8 transition-all duration-500 ${isDragOver ? 'scale-110' : 'group-hover:scale-105'}`}>
+                        <div className={`absolute -inset-4 bg-[#F97316] rounded-full opacity-20 blur-xl transition-all duration-500 ${isDragOver ? 'scale-150 opacity-40' : 'scale-100'}`}></div>
+                        <div className={`w-24 h-24 bg-white border-2 border-black rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative z-10 transition-transform duration-300 ${isDragOver ? 'rotate-[-6deg]' : 'rotate-3 group-hover:rotate-6'}`}>
+                            <svg className="w-10 h-10 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                             </svg>
-                          </div>
-                          <p className="text-xl font-semibold text-blue-600">Drop your image here</p>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>              ) : stagedImageUrl ? (
-                /* Upload Complete - Show Results */
-                <div className="space-y-8">
-                  <div className="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">
-                    <div className="text-center mb-8">
-                      <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
-                        <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <h3 className="text-2xl font-semibold text-gray-900 mb-2">AI Staging Complete!</h3>
-                      <p className="text-gray-600">Your staged result is ready</p>
-                    </div>                      
-                    {/* Staged Result Image */}
-                    <div className="mb-8">
-                      <div className="max-w-2xl mx-auto">
-                        <div className="relative rounded-3xl overflow-hidden bg-gray-100 shadow-xl">
-                          {stagedImageUrl ? (                            <img
-                              src={stagedImageUrl}
-                              alt="AI virtual staging result professional home staging transforms empty property rooms real estate marketing success"
-                              className="w-full h-auto object-cover"
-                            />
-                          ) : (
-                            <div className="h-80 flex items-center justify-center">
-                              <div className="text-center">
-                                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                </div>
-                                <p className="text-gray-600">Processing your staged room...</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>                      </div>
-                    </div>
+                        {/* Decorative Badge */}
+                        <div className="absolute -top-3 -right-3 bg-[#A3E635] border-2 border-black rounded-full px-2 py-0.5 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transform rotate-12 z-20">
+                          AI
+                        </div>
+                     </div>
+                     
+                     <h3 className="text-4xl font-black text-[#1a1a1a] mb-3 uppercase tracking-tight">
+                       Upload Room
+                     </h3>
+                     
+                     <p className="text-lg text-gray-600 mb-8 font-medium max-w-md">
+                        <span className="bg-yellow-100 px-1">Drag & drop</span> anywhere or click the button below to start staging
+                     </p>
 
-                    <div className="flex items-center justify-center gap-4">
-                      {/* Main Download Button */}
-                      <button
-                        onClick={downloadStagedImage}
-                        className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-full hover:from-green-700 hover:to-emerald-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Download Staged Image
-                      </button>
+                     <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="file-upload"
+                        onClick={(e) => e.stopPropagation()} 
+                      />
                       
-                      {/* Stage Another Image - Refresh Icon */}
-                      <button
-                        onClick={clearSelection}
-                        className="flex items-center justify-center w-14 h-14 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-                        title="Stage Another Image"
-                      >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
-                    </div>
+                      <span className="inline-flex items-center gap-3 px-10 py-4 bg-[#F97316] text-white text-xl font-black uppercase rounded-xl border-2 border-black transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:scale-105 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group/btn">
+                        <span className="relative z-10 flex items-center gap-3">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Select Photo
+                        </span>
+                        {/* Shimmer Effect */}
+                        <div className="absolute inset-0 -translate-x-full group-hover/btn:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0"></div>
+                      </span>
+                      
+                      <p className="mt-6 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                        Supports JPG, PNG, WEBP (Max 10MB)
+                      </p>
                   </div>
-                </div>) : (
-                /* Image Selected - Show Image with X Button Only */
-                <div className="space-y-6">
-                  <div className="relative">
-                    {/* X Button - Top Right */}
-                    <button
-                      onClick={clearSelection}
-                      className="absolute top-4 right-4 z-10 w-10 h-10 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-lg"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>                    {/* Image Display Only */}
-                    <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-                      {previewUrl ? (                        <img
-                          src={previewUrl}
-                          alt="Empty property room ready for AI virtual staging real estate photography enhancement"
-                          className="w-full h-96 object-cover"
-                        />
-                      ) : (
-                        <div className="h-96 flex items-center justify-center bg-gray-100">
-                          <p className="text-gray-500">Upload an image to get started</p>
-                        </div>
-                      )}
+               </motion.div>
+            ) : stagedImageUrl ? (
+                // Result View
+                <div className="max-w-4xl mx-auto bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="p-8 border-b-2 border-black bg-[#A3E635]/20">
+                         <div className="flex items-center justify-center gap-3 mb-2">
+                             <div className="bg-[#A3E635] text-black border-2 border-black p-2 rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                             </div>
+                             <h3 className="text-2xl font-black uppercase">Staging Complete</h3>
+                         </div>
                     </div>
-                  </div>                  {/* Upload Button Below Image */}
-                  <div className="bg-white rounded-3xl shadow-2xl p-8">
-                    <div className="space-y-6">
-                      {/* Style Selection */}
-                      <div>
-                        <label className="block text-lg font-semibold text-gray-900 mb-4">
-                          Style Selection <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {styleOptions.map((style) => (
-                            <button
-                              key={style.value}
-                              onClick={() => setSelectedStyle(style.value)}
-                              className={`p-4 border-2 rounded-xl text-left transition-all duration-200 hover:shadow-md ${
-                                selectedStyle === style.value
-                                  ? 'border-purple-500 bg-purple-50 shadow-md'
-                                  : 'border-gray-200 hover:border-gray-300'
-                              }`}
-                            >
-                              <div className="font-semibold text-gray-900 mb-1">{style.label}</div>
-                              <div className="text-sm text-gray-600">{style.description}</div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                    
+                    <div className="p-8 space-y-8">
+                         <div className="relative rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-gray-100">
+                             <img src={stagedImageUrl} alt="Staged Result" className="w-full h-auto" />
+                         </div>
 
-                      {/* Room Type Selection */}
-                      <div>
-                        <label className="block text-lg font-semibold text-gray-900 mb-4">
-                          Room Type <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {roomTypeOptions.map((room) => (
-                            <button
-                              key={room.value}
-                              onClick={() => setSelectedRoomType(room.value)}
-                              className={`p-3 border-2 rounded-xl font-medium transition-all duration-200 hover:shadow-md ${
-                                selectedRoomType === room.value
-                                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
-                                  : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                              }`}
-                            >
-                              {room.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Additional Prompt */}
-                      <div>
-                        <label className="block text-lg font-semibold text-gray-900 mb-2">
-                          Additional Prompt <span className="text-gray-500">(Optional)</span>
-                        </label>
-                        <textarea
-                          value={additionalPrompt}
-                          onChange={(e) => setAdditionalPrompt(e.target.value)}
-                          placeholder="Describe any specific furniture, colors, or styling preferences..."
-                          className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none focus:border-purple-500 focus:outline-none transition-colors duration-200"
-                          rows={3}
-                        />
-                        <div className="text-sm text-gray-500 mt-1">
-                          Help the AI understand your vision better with specific details
-                        </div>
-                      </div>
-
-                      {/* Stage Button */}
-                      <div className="text-center pt-4">
-                        <button
-                          onClick={handleUpload}
-                          disabled={isUploading || isLimitReached || !isFormValid}
-                          className={`px-8 py-4 font-semibold rounded-full transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg ${
-                            isFormValid && !isLimitReached && !isUploading
-                              ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white'
-                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          }`}
-                        >
-                          {isUploading ? (
-                            <div className="flex items-center justify-center">
-                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                              Staging Image...
-                            </div>                          ) : isLimitReached ? (
-                            'Limit Reached'
-                          ) : !isFormValid ? (
-                            'Please Select Style & Room Type'
-                          ) : (
-                            'Stage This Image'
-                          )}
-                        </button>
-                        
-                        {!isFormValid && (
-                          <div className="text-sm text-gray-500 mt-2">
-                            Please select both style and room type to continue
-                          </div>
-                        )}
-                      </div>                    </div>
-                  </div>
+                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                             <button
+                                onClick={downloadStagedImage}
+                                className="w-full sm:w-auto px-8 py-4 bg-[#F97316] text-white border-2 border-black font-bold uppercase rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-2"
+                              >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Download
+                              </button>
+                             <button
+                                onClick={clearSelection}
+                                className="w-full sm:w-auto px-8 py-4 bg-white text-black border-2 border-black font-bold uppercase rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                              >
+                                Stage Another
+                              </button>
+                         </div>
+                    </div>
                 </div>
-              )}
+            ) : (
+                // Form View
+                <div className={`flex flex-col lg:flex-row gap-8 items-start transition-all duration-500 ${markerPositions.length > 0 ? '' : 'justify-center'}`}>
+                    <motion.div 
+                        layout 
+                        className="w-full max-w-4xl space-y-8"
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                    >
+                    {/* Image Preview */}
+                    <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4 relative">
+                        <button
+                          onClick={clearSelection}
+                          className="absolute -top-4 -right-4 bg-red-500 text-white w-10 h-10 rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center hover:scale-110 transition-transform z-20"
+                        >
+                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                         {previewUrl ? (
+                            <div 
+                                ref={containerRef}
+                                className={`relative rounded-lg bg-gray-50 border-2 border-black group`}
+                                style={{
+                                    cursor: drawingMarkerId 
+                                        ? PEN_CURSOR 
+                                        : (markerPositions.length < 6 ? PLUS_CURSOR : 'default')
+                                }}
+                                onMouseEnter={() => setIsHoveringImage(true)}
+                                onMouseLeave={() => {
+                                    if (isDrawingRadius && drawingMarkerId) {
+                                        setIsDrawingRadius(false);
+                                        // Validate on leave if drawing
+                                        const marker = markerPositions.find(m => m.id === drawingMarkerId);
+                                        if (marker && marker.radiusPoints && marker.radiusPoints.length > 2) {
+                                            if (!isPointInPolygon({x: marker.x, y: marker.y}, marker.radiusPoints)) {
+                                                updateMarker(marker.id, { radiusPoints: [] });
+                                                setShowRadiusError(true);
+                                                setTimeout(() => setShowRadiusError(false), 3000);
+                                            }
+                                        }
+                                    }
+                                    setIsHoveringImage(false);
+                                }}
+                                onMouseDown={(e) => {
+                                    if (drawingMarkerId) {
+                                        setIsDrawingRadius(true);
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = ((e.clientX - rect.left) / rect.width) * 100;
+                                        const y = ((e.clientY - rect.top) / rect.height) * 100;
+                                        
+                                        // Start fresh
+                                        updateMarker(drawingMarkerId, { radiusPoints: [{x, y}] });
+                                    }
+                                }}
+                                onMouseUp={() => {
+                                    if (isDrawingRadius && drawingMarkerId) {
+                                        setIsDrawingRadius(false);
+                                        // Validate
+                                        const marker = markerPositions.find(m => m.id === drawingMarkerId);
+                                        // Need at least 3 points for a polygon
+                                        if (marker && marker.radiusPoints && marker.radiusPoints.length > 2) {
+                                            if (!isPointInPolygon({x: marker.x, y: marker.y}, marker.radiusPoints)) {
+                                                updateMarker(marker.id, { radiusPoints: [] });
+                                                setShowRadiusError(true);
+                                                setTimeout(() => setShowRadiusError(false), 3000);
+                                            }
+                                        } else {
+                                            // Too few points, just clear
+                                            if (marker) updateMarker(marker.id, { radiusPoints: [] });
+                                        }
+                                        setDrawingMarkerId(null);
+                                        justFinishedDrawing.current = true;
+                                        setTimeout(() => { justFinishedDrawing.current = false; }, 50);
+                                    }
+                                }}
+                                onMouseMove={(e) => {
+                                    if (isDrawingRadius && drawingMarkerId) {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = ((e.clientX - rect.left) / rect.width) * 100;
+                                        const y = ((e.clientY - rect.top) / rect.height) * 100;
+                                        
+                                        setMarkerPositions(prev => prev.map(m => {
+                                            if (m.id === drawingMarkerId) {
+                                                return { 
+                                                    ...m, 
+                                                    radiusPoints: [...(m.radiusPoints || []), { x, y }] 
+                                                };
+                                            }
+                                            return m;
+                                        }));
+                                    }
+                                }}
+                                onClick={(e) => {
+                                    if (drawingMarkerId) return;
+                                    if (justFinishedDrawing.current) {
+                                        justFinishedDrawing.current = false;
+                                        return;
+                                    }
+
+                                    if (markerPositions.length >= 6) {
+                                        setShowLimitWarning(true);
+                                        setTimeout(() => setShowLimitWarning(false), 2000);
+                                        return;
+                                    }
+                                    
+                                    const usedColors = new Set(markerPositions.map(m => m.color));
+                                    const availableColors = MARKER_COLORS.filter(c => !usedColors.has(c));
+                                    const color = availableColors.length > 0 
+                                        ? availableColors[Math.floor(Math.random() * availableColors.length)]
+                                        : MARKER_COLORS[Math.floor(Math.random() * MARKER_COLORS.length)];
+
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                                    
+                                    const newMarker = { id: Math.random().toString(36).substr(2, 9), x, y, color };
+                                    setMarkerPositions(prev => [...prev, newMarker]);
+                                }}
+                            >
+                                <img
+                                  src={previewUrl}
+                                  alt="Preview"
+                                  className="w-full h-auto block select-none rounded-lg relative z-0"
+                                  draggable={false}
+                                />
+                                
+                                    {/* Radius Overlay */}
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                    {markerPositions.map(marker => (
+                                        marker.radiusPoints && marker.radiusPoints.length > 0 && (
+                                            <polygon
+                                                key={`poly-${marker.id}`}
+                                                points={marker.radiusPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                                                fill={marker.color}
+                                                fillOpacity="0.2"
+                                                stroke="black"
+                                                strokeWidth="2"
+                                                strokeDasharray="5,5"
+                                                vectorEffect="non-scaling-stroke"
+                                            />
+                                        )
+                                    ))}
+                                </svg>
+
+                                {/* Placed Markers */}
+                                {markerPositions.map((marker) => (
+                                   <div 
+                                        key={marker.id}
+                                        className={`absolute w-6 h-6 flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 z-20 ${draggingId === marker.id ? 'cursor-grabbing' : 'cursor-grab'}`}
+                                        style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+                                   >
+                                        <div 
+                                            className={`w-6 h-6 text-black border-2 border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform duration-300 ${draggingId === marker.id ? 'scale-110' : 'hover:scale-110'}`}
+                                            style={{ backgroundColor: marker.color }}
+                                            onMouseEnter={() => {
+                                                if (!draggingId) {
+                                                    setHoveredMarkerId(marker.id);
+                                                    setIsHoveringMarker(true);
+                                                }
+                                            }}
+                                            onMouseLeave={() => {
+                                                setHoveredMarkerId(null);
+                                                setIsHoveringMarker(false);
+                                            }}
+                                            onMouseDown={(e) => handleMouseDown(e, marker.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </div>
+
+                                        <AnimatePresence>
+                                            {hoveredMarkerId === marker.id && !draggingId && (marker.instruction || marker.referenceImage) && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                                                    className="absolute left-1/2 bottom-full mb-3 -translate-x-1/2 w-64 bg-white rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 z-50 text-left pointer-events-none"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {marker.referenceImage && (
+                                                            <div className="w-16 h-16 bg-purple-100 border-2 border-black p-2 rounded-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex-shrink-0 overflow-hidden">
+                                                                <img 
+                                                                    src={URL.createObjectURL(marker.referenceImage)} 
+                                                                    alt="Ref" 
+                                                                    className="w-full h-full object-contain" 
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {marker.instruction && (
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-purple-600 text-sm font-bold font-brand leading-tight break-words line-clamp-3">
+                                                                    {marker.instruction}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {/* Arrow */}
+                                                    <div className="absolute left-1/2 top-full -ml-3 w-6 h-6 bg-white border-r-2 border-b-2 border-black transform rotate-45 -mt-3"></div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                   </div>
+                                ))}
+                            </div>
+                          ) : (
+                             // Fallback
+                             <div className="h-96" /> 
+                          )}
+                    </div>
+
+                    {/* Controls */}
+                    <div className="bg-white border-2 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8">
+                        <div className="space-y-8">
+                             {/* Style */}
+                             <div>
+                                <label className="block text-xl font-black uppercase mb-4 flex items-center gap-2">
+                                    <span className="bg-black text-white w-8 h-8 flex items-center justify-center rounded-lg text-sm">1</span>
+                                    Choose Style
+                                </label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                  {styleOptions.map((style) => (
+                                    <button
+                                      key={style.value}
+                                      onClick={() => setSelectedStyle(style.value)}
+                                      className={`p-4 border-2 rounded-xl text-left transition-all ${
+                                        selectedStyle === style.value
+                                          ? 'border-black bg-[#A3E635] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]'
+                                          : 'border-black bg-white hover:bg-gray-50 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
+                                      }`}
+                                    >
+                                      <div className="font-bold text-black mb-1">{style.label}</div>
+                                      <div className="text-xs font-medium text-gray-600 leading-tight">{style.description}</div>
+                                    </button>
+                                  ))}
+                                </div>
+                             </div>
+
+                             {/* Room Type */}
+                             <div>
+                                <label className="block text-xl font-black uppercase mb-4 flex items-center gap-2">
+                                    <span className="bg-black text-white w-8 h-8 flex items-center justify-center rounded-lg text-sm">2</span>
+                                    Room Type
+                                </label>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  {roomTypeOptions.map((room) => (
+                                    <button
+                                      key={room.value}
+                                      onClick={() => setSelectedRoomType(room.value)}
+                                      className={`p-3 border-2 rounded-lg font-bold text-sm transition-all ${
+                                        selectedRoomType === room.value
+                                          ? 'border-black bg-[#3B82F6] text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]'
+                                          : 'border-black bg-white text-black hover:bg-gray-50 hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
+                                      }`}
+                                    >
+                                      {room.label}
+                                    </button>
+                                  ))}
+                                </div>
+                             </div>
+
+                              {/* Additional Prompt */}
+                              <div>
+                                <label className="block text-xl font-black uppercase mb-4 flex items-center gap-2">
+                                    <span className="bg-black text-white w-8 h-8 flex items-center justify-center rounded-lg text-sm">3</span>
+                                    Additional Details <span className="text-sm font-normal text-gray-400 ml-2">(Optional)</span>
+                                </label>
+                                <textarea
+                                  value={additionalPrompt}
+                                  onChange={(e) => setAdditionalPrompt(e.target.value)}
+                                  placeholder="Describe any specific furniture, colors, or styling preferences..."
+                                  className="w-full p-4 border-2 border-black rounded-xl resize-none focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                  rows={3}
+                                />
+                              </div>
+
+                             {/* Button */}
+                             <div className="pt-6">
+                                <button
+                                  onClick={handleUpload}
+                                  disabled={isUploading || isLimitReached || !isFormValid}
+                                  className={`w-full py-5 font-black text-xl uppercase tracking-wider rounded-xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all ${
+                                    isFormValid && !isLimitReached && !isUploading
+                                      ? 'bg-[#F97316] text-white hover:bg-[#EA580C] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-400 shadow-none'
+                                  }`}
+                                >
+                                  {isUploading ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                      <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      Magic in progress...
+                                    </span>
+                                  ) : isLimitReached ? 'Limit Reached' : 'Generate Stage'}
+                                </button>
+                                {!isFormValid && (
+                                  <p className="text-center text-sm font-bold text-gray-400 mt-2">
+                                     * Select Style & Room Type to continue
+                                  </p>
+                                )}
+                             </div>
+                        </div>
+                    </div>
+                </motion.div>
+                
+                {/* Right Marker Panel */}
+                <AnimatePresence>
+                    {markerPositions.length > 0 && (
+                        <motion.div 
+                            initial={{ opacity: 0, x: 20, width: 0 }}
+                            animate={{ opacity: 1, x: 0, width: 320 }} // Fixed width for sidebar
+                            exit={{ opacity: 0, x: 20, width: 0 }}
+                            transition={{ duration: 0.4, ease: "easeOut" }}
+                            className="hidden lg:block lg:flex-shrink-0"
+                        >
+                            <div className="sticky top-24 w-80 space-y-4">
+                                <h3 className="font-black text-xl uppercase mb-4 flex items-center gap-2">
+                                    <span className="bg-black text-white w-8 h-8 flex items-center justify-center rounded-lg text-sm">#</span>
+                                    Point Details
+                                </h3>
+                                {markerPositions.map((marker, index) => (
+                                    <motion.div 
+                                        key={marker.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="bg-white border-2 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative group"
+                                    >
+                                    <div 
+                                        className="absolute -top-3 -left-3 text-black border-2 border-black w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-sm z-10"
+                                        style={{ backgroundColor: marker.color }}
+                                    >
+                                        {index + 1}
+                                    </div>
+                                    <button 
+                                        onClick={() => setMarkerPositions(prev => prev.filter(m => m.id !== marker.id))}
+                                        className="absolute -top-2 -right-2 bg-red-500 text-white hover:bg-red-600 border-2 border-black w-7 h-7 rounded-lg flex items-center justify-center transition-colors shadow-sm z-10"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                    
+                                    <div className="mt-4 space-y-3">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase mb-1">Instructions</label>
+                                            <textarea 
+                                                value={marker.instruction || ''}
+                                                onChange={(e) => updateMarker(marker.id, { instruction: e.target.value })}
+                                                className="w-full text-sm p-3 border-2 border-black rounded-lg resize-none focus:outline-none focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-gray-50 focus:bg-white"
+                                                rows={2}
+                                                placeholder="Describe what to do here..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase mb-1">Reference Image</label>
+                                            <div className="relative flex items-center gap-2">
+                                                <input 
+                                                    type="file" 
+                                                    className="hidden" 
+                                                    id={`ref-img-${marker.id}`}
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            if (file.size > 4 * 1024 * 1024) { // 4MB limit
+                                                                setShowFileSizeWarning(true);
+                                                                setTimeout(() => setShowFileSizeWarning(false), 10000);
+                                                                // Reset the input value so the same file can be selected again if needed (though it will fail again)
+                                                                e.target.value = ''; 
+                                                                return;
+                                                            }
+                                                            updateMarker(marker.id, { referenceImage: file });
+                                                        }
+                                                    }}
+                                                />
+                                                <label 
+                                                    htmlFor={`ref-img-${marker.id}`}
+                                                    className={`flex-1 flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 hover:border-black transition-colors ${marker.referenceImage ? 'border-black bg-blue-50' : 'border-gray-400'}`}
+                                                >
+                                                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                    <span className="text-xs font-bold text-gray-600 truncate max-w-[150px]">
+                                                        {marker.referenceImage ? marker.referenceImage.name : 'Upload Reference'}
+                                                    </span>
+                                                </label>
+                                                {marker.referenceImage && (
+                                                    <button
+                                                        onClick={() => {
+                                                            updateMarker(marker.id, { referenceImage: undefined });
+                                                            const input = document.getElementById(`ref-img-${marker.id}`) as HTMLInputElement;
+                                                            if (input) input.value = '';
+                                                        }}
+                                                        className="bg-white hover:bg-red-50 text-red-500 border-2 border-gray-200 hover:border-red-500 rounded-lg p-2 transition-colors"
+                                                        title="Remove image"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Draw Radius Button */}
+                                        <div>
+                                            {drawingMarkerId === marker.id ? (
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1 bg-black text-white border-2 border-black rounded-lg py-2 text-xs font-bold uppercase flex items-center justify-center gap-2 animate-pulse">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                        Drawing...
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setDrawingMarkerId(null)}
+                                                        className="bg-white text-gray-500 border-2 border-black rounded-lg px-3 hover:bg-gray-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                        title="Cancel"
+                                                    >
+                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => setDrawingMarkerId(marker.id)}
+                                                        className={`flex-1 border-2 border-black rounded-lg py-2 text-xs font-bold uppercase transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-2 ${
+                                                            marker.radiusPoints && marker.radiusPoints.length > 0 
+                                                                ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' 
+                                                                : 'bg-white text-black hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                        </svg>
+                                                        {marker.radiusPoints && marker.radiusPoints.length > 0 ? 'Draw Again' : 'Draw Radius'}
+                                                    </button>
+                                                    {marker.radiusPoints && marker.radiusPoints.length > 0 && (
+                                                        <button
+                                                            onClick={() => updateMarker(marker.id, { radiusPoints: [] })}
+                                                            className="bg-white text-red-500 border-2 border-black rounded-lg px-3 hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                            title="Clear Radius"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
-          </div>
-        </main>        {/* Upload History Section */}
-        {uploadHistory.length > 0 && (
-          <section className="py-16 px-4 bg-white/50 backdrop-blur-sm">
+            )}
+            
+            {/* Limit Warning Notification */}
+            <AnimatePresence>
+                {showLimitWarning && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, x: 20 }}
+                        animate={{ opacity: 1, y: 0, x: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="fixed bottom-8 right-8 bg-red-500 text-white px-6 py-4 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 flex items-center gap-3 font-bold"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        You can only place a maximum of 6 points
+                    </motion.div>
+                )}
+                {/* File Size Warning Notification */}
+                 {showFileSizeWarning && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, x: 20 }}
+                        animate={{ opacity: 1, y: 0, x: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="fixed bottom-8 right-8 bg-red-500 text-white px-6 py-4 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50 flex items-center gap-3 font-bold"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Reference image exceeds 4MB limit
+                    </motion.div>
+                )}
+                 {/* Radius Error Notification */}
+                 {showRadiusError && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, x: 20 }}
+                        animate={{ opacity: 1, y: 0, x: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="fixed bottom-8 right-8 bg-black text-white px-6 py-4 rounded-xl border-2 border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] z-50 flex items-center gap-3 font-bold"
+                    >
+                        <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Radius must include the point!
+                    </motion.div>
+                )}
+                 
+
+            </AnimatePresence>
+
+            </div>
+          </motion.div>
+        </main>
+
+        {/* Upload History */}
+       {uploadHistory.length > 0 && (
+          <section className="py-16 px-4 border-t-2 border-black bg-white">
             <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  Your Staging History
-                </h2>
-                <p className="text-lg text-gray-600">
-                  Your previously staged room images
-                </p>
+              <div className="flex items-center gap-4 mb-12">
+                  <div className="h-1 bg-black flex-grow"></div>
+                  <h2 className="text-3xl font-black text-black uppercase text-center bg-[#A3E635] border-2 border-black px-6 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-1">
+                    Your Gallery
+                  </h2>
+                  <div className="h-1 bg-black flex-grow"></div>
               </div>
 
-              {isLoadingHistory ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                  <span className="ml-3 text-gray-600">Loading your history...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {uploadHistory.map((record) => (
                     <div 
                       key={record.id} 
-                      className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300"
+                      className="bg-white border-2 border-black rounded-xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all duration-300 p-6"
                     >
-                      {/* Icon */}
-                      <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                      <div className="flex items-start justify-between mb-4">
+                         <div className="bg-gray-100 border-2 border-black rounded-lg p-3">
+                            <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                         </div>
+                         <span className="text-xs font-bold bg-black text-white px-2 py-1 rounded">
+                            {formatDate(record.uploadedAt)}
+                         </span>
                       </div>
                       
-                      {/* Content */}
-                      <div className="text-center">
-                        <h3 className="font-semibold text-gray-900 mb-2 capitalize">
-                          {record.roomType?.replace('-', ' ')} • {record.style}
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-4">
-                          {formatDate(record.uploadedAt)}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          Original: {record.imageName}
-                        </p>
-                      </div>
+                      <h3 className="font-bold text-xl text-black capitalize mb-1">
+                          {record.roomType?.replace('-', ' ')}
+                      </h3>
+                      <p className="text-sm font-medium text-gray-500 mb-4 capitalize">
+                          {record.style} Style
+                      </p>
+                      
+                       <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+                           <div className="w-1/2 h-full bg-[#3B82F6]"></div>
+                       </div>
                     </div>
-                  ))}                </div>
-              )}
+                  ))}
+                </div>
             </div>
           </section>
-        )}
+       )}
 
         <Footer />
       </div>
-    </AuthGuard>
+    </>
   );
 }
 
 // Loading component for Suspense fallback
 function UploadPageLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-[#FFFCF5]">
       <Navigation />
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+      <div className="container mx-auto px-4 py-24">
+        <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-black border-b-transparent mb-6"></div>
+            <h2 className="text-2xl font-black uppercase text-black">Loading Studio...</h2>
         </div>
       </div>
       <Footer />

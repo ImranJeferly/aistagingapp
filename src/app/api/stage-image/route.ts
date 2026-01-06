@@ -1,103 +1,136 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Initialize Google GenAI client (Nano Banana Pro)
+const ai = new GoogleGenAI({
+  apiKey: process.env.GOOGLE_API_KEY || '',
 });
 
 export async function POST(request: NextRequest) {
   try {
-    const { imageData, style, roomType, additionalPrompt } = await request.json();
+    const { originalImage, maskedImage, markers, style, roomType, additionalPrompt } = await request.json();
 
-    if (!imageData || !style || !roomType) {
+    if (!originalImage || !style || !roomType) {
       return NextResponse.json(
-        { error: 'Missing required fields: imageData, style, or roomType' },
+        { error: 'Missing required fields: originalImage, style, or roomType' },
         { status: 400 }
       );
     }
 
-    // Create a detailed prompt for home staging with image generation
-    const prompt = `Take the uploaded image of an empty room and add realistic, photo-quality furniture appropriate for its function: ${roomType}. 
+    // Helper to format parts for the new SDK
+    const formatImagePart = (base64String: string | null) => {
+      if (!base64String) return null;
+      const base64Content = base64String.split(',')[1] || base64String;
+      return {
+        inlineData: {
+          data: base64Content,
+          mimeType: 'image/jpeg',
+        },
+      };
+    };
 
-                    ⚠️ Do not change or modify the existing architecture, flooring, ceiling, windows, wall color, or lighting in any way. Preserve all original structural and visual elements exactly as they are.
+    const parts: any[] = [];
 
-                    Only add carefully selected, well-composed furniture and decor elements that naturally fit the space. Ensure all additions reflect the chosen interior style: ${style}. Use appropriate textures, materials, and color tones that harmonize with the room’s existing lighting and color palette.
+    // 1. Prompt Construction
+    parts.push({
+      text: `You are an expert AI Interior Designer.
+      Task: Generate a photo-realistic image of the provided room, STAGED with furniture.
+      
+      CRITICAL:
+      1. PRESERVE the ORIGINAL ARCHITECTURE (walls, floor, ceiling, windows) exactly as shown in the "Original Empty Room" image.
+      2. GENERATE new furniture items placed into the scene.
+      
+      Room Type: ${roomType}
+      Interior Style: ${style}
+      ${additionalPrompt ? `Instructions: ${additionalPrompt}` : ''}`
+    });
 
-                    Maintain consistent perspective, shadows, lighting direction, and scale, so that the furniture appears fully integrated into the scene. Avoid distortions, clutter, or unrealistic placements.
+    parts.push({ text: "IMAGE 1: Original Empty Room (Base Canvas)" });
+    parts.push(formatImagePart(originalImage));
 
-                    Room Type: ${roomType}  
-                    Interior Style: ${style}  
-                    ${additionalPrompt ? `Additional Guidelines: ${additionalPrompt}` : ''}
+    if (maskedImage && markers && markers.length > 0) {
+        parts.push({ text: "IMAGE 2: Layout Guide. Use the colored dots to position items." });
+        parts.push(formatImagePart(maskedImage));
 
-                    🎯 Objective: Produce a visually cohesive, professionally staged image that would appeal to real estate buyers or renters. The result should look like a real photo of the same room after expert virtual staging — with all architecture and lighting untouched, and only high-quality furnishings added.`;
-
-    // Use the new Responses API with GPT Image 1 for both analysis and generation
-    const response = await openai.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: prompt
-            },
-            {
-              type: "input_image",
-              image_url: imageData,
-              detail: "high"
-            }
-          ]
+        for (const marker of markers) {
+             const mColor = marker.color;
+             const mInstr = marker.instruction || "Furniture item";
+             
+             let markerText = `\n--- POINT ${mColor} ---\nInstruction: "${mInstr}"`;
+             parts.push({ text: markerText });
+             
+             if (marker.refImage) {
+                 parts.push({ text: "Use this reference image for style/shape:" });
+                 parts.push(formatImagePart(marker.refImage));
+             }
         }
-      ],
-      tools: [{ type: "image_generation" }]
-    });    // Extract the generated image from the response
-    const imageOutput = response.output
-      .filter((output) => output.type === "image_generation_call")
-      .map((output) => output.result);
-
-    if (imageOutput.length === 0) {
-      throw new Error('No staged image generated');
+    } else {
+        parts.push({ text: "Stage the room naturally with appropriate furniture." });
     }
 
-    const stagedImageBase64 = imageOutput[0];
+    // Filter nulls
+    const validParts = parts.filter(p => p !== null);
+
+    // 2. Call the Model
+    // STRICTLY using "Nano Banana Pro" (gemini-3-pro-image-preview) as requested
+    const modelName = 'gemini-3-pro-image-preview'; 
     
+    const config = {
+      responseModalities: ['IMAGE', 'TEXT'], // Requesting Image!
+    };
+
+    console.log(`Calling Nano Banana Pro (${modelName})...`);
+    
+    const response = await ai.models.generateContent({
+      model: modelName, 
+      config: config as any,
+      contents: [
+        {
+          role: 'user',
+          parts: validParts,
+        },
+      ],
+    });
+
+    // 3. Process Response
+    let generatedImageBase64 = null;
+    let aiText = "";
+
+    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                // Found an image!
+                generatedImageBase64 = part.inlineData.data;
+            } else if (part.text) {
+                aiText += part.text;
+            }
+        }
+    }
+
+    if (!generatedImageBase64) {
+        console.warn("No image generated by AI, returning fallback text plan.");
+    } else {
+        console.log("AI successfully generated an image!");
+    }
+    
+    // If no image, fallback to original to prevent frontend crash, but text will explain
+    const finalImage = generatedImageBase64 
+        ? `data:image/jpeg;base64,${generatedImageBase64}` 
+        : originalImage;
+
     return NextResponse.json({
       success: true,
-      stagedImage: `data:image/png;base64,${stagedImageBase64}`, // Properly formatted data URL
+      stagedImage: finalImage,
+      aiDescription: aiText,
+      message: generatedImageBase64 ? "Stage generated successfully!" : "AI analysis complete (No new image generated)",
       style,
-      roomType,
-      additionalPrompt
+      roomType
     });
 
   } catch (error) {
-    console.error('OpenAI API Error:', error);
-    
-    // Handle specific OpenAI errors
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        return NextResponse.json(
-          { error: 'OpenAI API key not configured' },
-          { status: 500 }
-        );
-      }
-      if (error.message.includes('quota')) {
-        return NextResponse.json(
-          { error: 'OpenAI API quota exceeded' },
-          { status: 429 }
-        );
-      }
-      if (error.message.includes('model')) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        );
-      }
-    }
-
+    console.error('Google GenAI Error:', error);
     return NextResponse.json(
-      { error: 'Failed to process image with AI' },
+      { error: error instanceof Error ? error.message : 'Failed to process with Google AI' },
       { status: 500 }
     );
   }

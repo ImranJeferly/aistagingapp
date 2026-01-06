@@ -173,6 +173,7 @@ export default function RootLayout({
       </head>
       <body
         className={`${bbhHegarty.variable} ${inter.variable} antialiased font-sans`}
+        suppressHydrationWarning={true}
       >
         <AuthProvider>
           {children}
