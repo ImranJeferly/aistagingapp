@@ -10,9 +10,12 @@ export async function POST(request: NextRequest) {
      const realIp = request.headers.get('x-real-ip');
      const ip = forwardedFor || realIp || '127.0.0.1';
      const clientIp = ip.split(',')[0].trim();
+     
+     console.log(`[Guest Save] Attempting save for IP: ${clientIp}, Session: ${sessionId}`);
 
      if (!adminDb) {
-        return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+        console.error('[Guest Save] adminDb is not initialized');
+        return NextResponse.json({ error: 'Server configuration error - DB not connected' }, { status: 500 });
      }
 
      // Double check limit
@@ -21,6 +24,7 @@ export async function POST(request: NextRequest) {
        .get();
     
      if (!check.empty) {
+        console.warn(`[Guest Save] Limit reached for IP: ${clientIp}`);
         return NextResponse.json({ error: 'Free limit reached. Cannot save upload.' }, { status: 429 });
      }
 

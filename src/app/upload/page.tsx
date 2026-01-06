@@ -591,7 +591,7 @@ function UploadPageContent() {
                  const originalStorageUrl = await uploadFileToStorage(originalBlob, `guest_uploads/${guestId}/original`);
                  const stagedStorageUrl = await uploadFileToStorage(stagedBlob, `guest_uploads/${guestId}/staged`);
                  
-                 await fetch('/api/guest/save-upload', {
+                 const saveResp = await fetch('/api/guest/save-upload', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
                    body: JSON.stringify({
@@ -602,6 +602,12 @@ function UploadPageContent() {
                        roomType: selectedRoomType
                    })
                 });
+
+                if (!saveResp.ok) {
+                    console.error("Failed to save guest upload record:", await saveResp.text());
+                } else {
+                    console.log("Guest upload recorded successfully");
+                }
             }
             
         } catch (uploadError) {
