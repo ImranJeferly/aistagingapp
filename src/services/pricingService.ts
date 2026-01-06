@@ -66,7 +66,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       '50 staged images per month',
       'All room types supported',
       'All interior styles',
-      'High-quality AI staging',
+      '4K high quality staging',
       'Download images',
       'No daily limits',
       'Priority processing',

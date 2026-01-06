@@ -33,9 +33,11 @@ const PEN_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3d
 const PLUS_CURSOR = `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJzaGFkb3ciPjxmZURyb3BTaGFkb3cgZHg9IjAiIGR5PSIxIiBzdGREZXZpYXRpb249IjEiIGZsb29kLW9wYWNpdHk9IjAuNSIvPjwvZmlsdGVyPjxnIGZpbHRlcj0idXJsKCNzaGFkb3cpIj48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxMyIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtZGFzaGFycmF5PSI0IDMiIGZpbGw9InJnYmEoMCwwLDAsMC4xNSkiLz48cGF0aCBkPSJNMTYgOFYyNE04IDE2SDI0IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvZz48L3N2Zz4=") 16 16, crosshair`;
 
 import { submitUploadFeedback } from '@/services/uploadService';
+import { useFile } from '../../contexts/FileContext';
 
 function UploadPageContent() {
   const { user } = useAuth();
+  const { file: contextFile, setFile: setContextFile } = useFile();
   const { isLimitReached, refreshLimit, remainingUploads, usedUploads, totalUploads, userTier } = useUploadLimit();
   const searchParams = useSearchParams();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -83,6 +85,17 @@ function UploadPageContent() {
   const [showClearConfirmation, setShowClearConfirmation] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const justFinishedDrawing = useRef(false);
+
+  // Check for file from global context on mount
+  useEffect(() => {
+    if (contextFile) {
+      setSelectedFile(contextFile);
+      const url = URL.createObjectURL(contextFile);
+      setPreviewUrl(url);
+      // Clear context to prevent re-initializing on refreshes unless intended
+      setContextFile(null);
+    }
+  }, [contextFile]);
 
   // Drag handler
   const handleMouseDown = (e: React.MouseEvent, id: string) => {

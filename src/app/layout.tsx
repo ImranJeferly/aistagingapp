@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Patrick_Hand, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "../contexts/AuthContext";
+import { FileProvider } from "../contexts/FileContext";
 import { Analytics } from "@vercel/analytics/next"
 
 const bbhHegarty = Patrick_Hand({
@@ -176,7 +177,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
       >
         <AuthProvider>
-          {children}
+          <FileProvider>
+            {children}
+          </FileProvider>
         </AuthProvider>
          <Analytics />
       </body>

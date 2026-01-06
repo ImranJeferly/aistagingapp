@@ -174,9 +174,9 @@ export default function PricingSection() {
                     </div>
                   )}
                 </div>
-                {plan.monthlyPrice === 0 && (
+                {/* {plan.monthlyPrice === 0 && (
                   <p className="text-blue-600 font-bold mt-2 font-brand text-xl">Forever Free</p>
-                )}
+                )} */}
               </div>
 
               {/* Daily/Monthly Limit */}

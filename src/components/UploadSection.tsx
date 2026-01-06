@@ -2,14 +2,18 @@
 
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { useFile } from '../contexts/FileContext';
 import FloatingElement from './FloatingElement';
 // import Floating3DModel from './Floating3DModel';
 import WigglyLine from './WigglyLine';
 import AuthButton from './AuthButton';
 
 export default function UploadSection() {
+  const router = useRouter();
+  const { setFile } = useFile();
   const [isDragOver, setIsDragOver] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [localFile, setLocalFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -28,19 +32,29 @@ export default function UploadSection() {
     
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      setSelectedFile(files[0]);
+      setLocalFile(files[0]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setSelectedFile(files[0]);
+       // If user clicked the main upload button and selected a file,
+       // take them directly to the upload page with the file.
+       setFile(files[0]);
+       router.push('/upload');
     }
   };
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleStageClick = () => {
+    if (localFile) {
+      setFile(localFile);
+      router.push('/upload');
+    }
   };
 
   return (
@@ -94,7 +108,7 @@ export default function UploadSection() {
             className={`relative bg-white rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-4 border-dashed transition-all duration-300 ${
               isDragOver 
                 ? 'border-[#FACC15] bg-yellow-50' 
-                : selectedFile 
+                : localFile 
                   ? 'border-green-500 bg-green-50' 
                   : 'border-black'
             }`}
@@ -103,7 +117,7 @@ export default function UploadSection() {
             onDrop={handleDrop}
           >
             <div className="p-12 md:p-20 text-center">
-              {selectedFile ? (
+              {localFile ? (
                 /* File Selected State */
                 <div className="space-y-6">
                   <div className="w-16 h-16 mx-auto bg-green-100 border-2 border-black rounded-full flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -114,15 +128,18 @@ export default function UploadSection() {
                   
                   <div>
                     <h3 className="text-2xl font-bold text-black mb-2 font-brand">File Ready!</h3>
-                    <p className="text-gray-600 mb-6 font-medium">{selectedFile.name}</p>
+                    <p className="text-gray-600 mb-6 font-medium">{localFile.name}</p>
                     <div className="flex justify-center gap-4">
                       <button
-                        onClick={() => setSelectedFile(null)}
+                        onClick={() => setLocalFile(null)}
                         className="px-6 py-3 border-2 border-black rounded-xl text-black font-bold hover:bg-gray-50 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all"
                       >
                         Choose Different
                       </button>
-                      <button className="px-8 py-3 bg-[#FACC15] text-black border-2 border-black rounded-xl font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transform hover:-translate-y-1 transition-all duration-200">
+                      <button 
+                        onClick={handleStageClick}
+                        className="px-8 py-3 bg-[#FACC15] text-black border-2 border-black rounded-xl font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transform hover:-translate-y-1 transition-all duration-200"
+                      >
                         Stage This Image
                       </button>
                     </div>
@@ -137,14 +154,12 @@ export default function UploadSection() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>                  {/* Upload Button */}
-                  <div>                    <AuthButton
-                      size="lg"
-                      hoverColor="bg-[#FACC15]"
-                      redirectTo="/upload"
+                  <div>                    <button
+                      onClick={handleUploadClick}
                       className="inline-flex items-center px-8 py-4 bg-[#FACC15] text-black text-xl font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transform hover:-translate-y-1 transition-all duration-200"
                     >
                       Upload Image
-                    </AuthButton>
+                    </button>
                   </div>
 
                   {/* Drop Text */}
