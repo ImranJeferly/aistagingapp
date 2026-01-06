@@ -44,6 +44,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Animation keyframes */
+@keyframes stripeMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 160px 160px;
+  }
+}
+
 @keyframes slideInRight {
   from {
     opacity: 0;

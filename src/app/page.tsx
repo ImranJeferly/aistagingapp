@@ -270,7 +270,7 @@ export default function Home() {
       </section>
 
       {/* Explore Gallery Section */}
-      <section className="mb-32">
+      <section>
         <ExploreGallery />
       </section>
 

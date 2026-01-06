@@ -64,7 +64,28 @@ export default function ExploreGallery() {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-4 py-24">
+    <div className="relative w-full overflow-hidden bg-[#FFFCF5] py-24">
+      {/* Animated Diagonal Lines Background */}
+      <div 
+        className="absolute inset-0 opacity-[0.1] pointer-events-none overflow-hidden"
+      >
+        <div 
+           className="absolute inset-0 w-[200%] h-[200%]"
+           style={{
+             backgroundImage: 'linear-gradient(45deg, #F97316 25%, transparent 25%, transparent 50%, #F97316 50%, #F97316 75%, transparent 75%, transparent)',
+             backgroundSize: '160px 160px',
+             animation: 'exploreStripeMove 15s linear infinite'
+           }}
+        />
+      </div>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes exploreStripeMove {
+          0% { background-position: 0 0; }
+          100% { background-position: -160px 160px; }
+        }
+      `}} />
+
+      <div className="relative z-10 w-full max-w-7xl mx-auto p-4">
       <div className="text-center mb-16 relative">
         <h2 className="font-brand text-5xl md:text-6xl font-bold text-black mb-6 leading-tight">
           Explore <span className="inline-block px-4 bg-orange-400 text-black rounded-lg border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">Creations</span>
@@ -135,5 +156,6 @@ export default function ExploreGallery() {
         </button>
       </div>
     </div>
+  </div>
   );
 }
