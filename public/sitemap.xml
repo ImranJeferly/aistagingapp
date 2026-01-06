@@ -7,48 +7,95 @@
   <!-- Main landing page - highest priority -->
   <url>
     <loc>https://aistagingapp.com</loc>
-    <lastmod>2025-06-17</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
-  <!-- Login page - medium priority -->
-  <url>
-    <loc>https://aistagingapp.com/login</loc>
-    <lastmod>2025-06-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-    <!-- Register page - medium priority -->
-  <url>
-    <loc>https://aistagingapp.com/register</loc>
-    <lastmod>2025-06-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-
-  <!-- Pricing page - high priority -->
-  <url>
-    <loc>https://aistagingapp.com/pricing</loc>
-    <lastmod>2025-06-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Features page - high priority -->
-  <url>
-    <loc>https://aistagingapp.com/features</loc>
-    <lastmod>2025-06-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Upload page - high priority -->
+  <!-- Core Features & Tools -->
   <url>
     <loc>https://aistagingapp.com/upload</loc>
-    <lastmod>2025-06-18</lastmod>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/features</loc>
+    <lastmod>2026-01-07</lastmod>
     <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/pricing</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/explore</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Blogs & Content -->
+  <url>
+    <loc>https://aistagingapp.com/blogs</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/blogs/L2JgtI0scHUYqYBevrlZ</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/blogs/aiCTNaTXN9xYLoUgcUH6</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/blogs/TJxAwUi3hM1MIakL4Esg</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Auth & Utility Pages -->
+  <url>
+    <loc>https://aistagingapp.com/login</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/register</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/forgot-password</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- Legal -->
+  <url>
+    <loc>https://aistagingapp.com/privacy</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://aistagingapp.com/terms</loc>
+    <lastmod>2026-01-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 
 </urlset>
