@@ -152,9 +152,9 @@ export default function AdminExplorePage() {
                 </div>
                 {/* Status Badge Overlay */}
                 <div className="absolute top-2 right-2">
-                   {image.exploreStatus === 'approved' && <Badge variant="success">Featured</Badge>}
-                   {image.exploreStatus === 'rejected' && <Badge variant="error" className="bg-red-500 text-white border-black">Rejected</Badge>}
-                   {image.exploreStatus === 'pending' && <Badge variant="warning">Pending</Badge>}
+                   {image.exploreStatus === 'approved' && <Badge isStatic className="!bg-[#A3E635]">Featured</Badge>}
+                   {image.exploreStatus === 'rejected' && <Badge isStatic className="!bg-red-500 !text-white">Rejected</Badge>}
+                   {image.exploreStatus === 'pending' && <Badge isStatic className="!bg-yellow-400">Pending</Badge>}
                 </div>
               </div>
 
