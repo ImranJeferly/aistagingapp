@@ -5,10 +5,12 @@ import AuthGuard from '../../components/AuthGuard';
 import Navigation from '../../components/Navigation';
 import Footer from '../../components/Footer';
 import AuthModal from '../../components/AuthModal';
+import ReviewModal from '../../components/ReviewModal';
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useUploadLimit } from '../../hooks/useUploadLimit';
 import { addCompletedUploadRecord, canUserUpload, getAllUserUploads, type UploadRecord } from '../../services/uploadService';
 import { uploadFileToStorage } from '../../services/storageService';
+import { hasUserReviewed } from '../../services/reviewService';
 import { Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,6 +59,22 @@ function UploadPageContent() {
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  
+  // Review System State
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [sessionUploadCount, setSessionUploadCount] = useState(0);
+  const [hasReviewed, setHasReviewed] = useState(false);
+
+  // Check if user has already reviewed
+  useEffect(() => {
+    async function checkReview() {
+      if (user) {
+        const reviewed = await hasUserReviewed(user.uid);
+        setHasReviewed(reviewed);
+      }
+    }
+    checkReview();
+  }, [user]);
   
   const MARKER_COLORS = [
     '#FACC15', // Yellow
@@ -607,6 +625,17 @@ function UploadPageContent() {
                 const updatedHistory = await getAllUserUploads(user.uid);
                 setUploadHistory(updatedHistory);
                 refreshLimit();
+
+                // Trigger Review Request
+                const newCount = sessionUploadCount + 1;
+                setSessionUploadCount(newCount);
+                
+                // Logic: Ask at 2 if not reviewed, else asks at 20, 40 etc.
+                const threshold = hasReviewed ? 20 : 2;
+                if (newCount % threshold === 0) {
+                    // Small delay to let the user see the result first
+                    setTimeout(() => setShowReviewModal(true), 2000);
+                }
             } else {
                  // GUEST UPLOAD
                  let guestId = localStorage.getItem('guest_session_id');
@@ -1989,6 +2018,17 @@ function UploadPageContent() {
         onClose={() => setShowAuthModal(false)}
         message="Free Limit Reached"
       />
+
+      {user && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          userId={user.uid}
+          userName={user.displayName || 'User'}
+          userAvatar={user.photoURL || undefined}
+          onReviewSubmitted={() => setHasReviewed(true)}
+        />
+      )}
     </>
   );
 }

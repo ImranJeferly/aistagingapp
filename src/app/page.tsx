@@ -17,6 +17,7 @@ import PricingSection from '../components/PricingSection';
 import FAQSection from '../components/FAQSection';
 import Footer from '../components/Footer';
 import ExploreGallery from '../components/ExploreGallery';
+import TestimonialsSection from '../components/TestimonialsSection';
 
 // JSON-LD structured data for SEO
 const jsonLd = {
@@ -268,6 +269,9 @@ export default function Home() {
       <section id="gallery">
         <UploadSection />
       </section>
+
+      {/* Testimonials Section */}
+      <TestimonialsSection />
 
       {/* Explore Gallery Section */}
       <section>

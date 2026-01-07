@@ -6,6 +6,7 @@ import {
   deleteDoc, 
   query, 
   orderBy,
+  where,
   serverTimestamp,
   addDoc
 } from 'firebase/firestore';
@@ -36,6 +37,25 @@ export async function getAllReviews(): Promise<Review[]> {
     } as Review));
   } catch (error) {
     console.error('Error fetching reviews:', error);
+    return [];
+  }
+}
+
+export async function getApprovedReviews(): Promise<Review[]> {
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME), 
+      where('status', '==', 'approved'),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Review));
+  } catch (error) {
+    console.error('Error fetching approved reviews:', error);
     return [];
   }
 }
@@ -88,3 +108,34 @@ export async function createMockReview() {
         console.error('Error creating mock review:', error);
     }
 }
+
+export async function addReview(userId: string, userName: string, rating: number, text: string, userAvatar?: string) {
+  try {
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+      userId,
+      userName,
+      userAvatar: userAvatar || '',
+      rating,
+      text,
+      status: 'pending', // Reviews typically require approval
+      featured: false,
+      createdAt: serverTimestamp()
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding review:', error);
+    throw error;
+  }
+}
+
+export async function hasUserReviewed(userId: string): Promise<boolean> {
+  try {
+    const q = query(collection(db, COLLECTION_NAME), where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('Error checking user review status:', error);
+    return false;
+  }
+}
+
