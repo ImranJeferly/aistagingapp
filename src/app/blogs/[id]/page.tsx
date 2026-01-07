@@ -40,6 +40,8 @@ export default function BlogPostPage() {
 
   useEffect(() => {
     if (!loading && post) {
+      document.title = post.title;
+      
       const tl = gsap.timeline({ defaults: { ease: "power2.out", duration: 0.8 } });
       
       if (headerRef.current) {
