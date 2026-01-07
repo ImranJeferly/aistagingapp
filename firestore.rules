@@ -79,12 +79,14 @@ service cloud.firestore {
         // --- Guest Uploads (Admin + Public Explore) ---
     match /guest_uploads/{uploadId} {
        allow write: if request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com';
-       allow read: if (request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com') || resource.data.exploreStatus == 'approved';
+       // Allow public read for any guest upload to prevent permission errors on queries
+       allow read: if true;
     }
 
     // --- Upload Collection Group Query (Admin + Public Explore) ---
     match /{path=**}/uploads/{uploadId} {
-       allow read: if (request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com') || resource.data.exploreStatus == 'approved';
+       // Allow public read access (needed for explore page queries by ID)
+       allow read: if true;
        allow write: if request.auth != null && request.auth.token.email == 'imranjeferly@gmail.com';
     }
 

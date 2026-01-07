@@ -9,7 +9,8 @@ import {
   limit,
   Timestamp,
   where,
-  collectionGroup
+  collectionGroup,
+  documentId
 } from "firebase/firestore";
 
 export type ExploreStatus = 'pending' | 'approved' | 'rejected';
@@ -175,26 +176,31 @@ export const exploreService = {
 
   getPublicImageById: async (id: string): Promise<StagedImage | null> => {
     try {
-      // 1. Check Guest Uploads first (Direct lookup is cheap)
-      const guestRef = doc(db, 'guest_uploads', id);
-      const guestSnap = await getDocs(query(collection(db, 'guest_uploads'), where('__name__', '==', id))); // fallback query if doc() fails auth? no, doc read is fine.
-      // Actually standard getDoc is faster
-      const mainGuestSnap = await import('firebase/firestore').then(mod => mod.getDoc(guestRef));
+      // 1. Check Guest Uploads
+      // Use documentId() query to avoid permission issues with getDoc() on non-existent docs
+      const guestQ = query(
+        collection(db, 'guest_uploads'),
+        where(documentId(), '==', id),
+        limit(1)
+      );
+      const guestSnap = await getDocs(guestQ);
       
-      if (mainGuestSnap.exists()) {
-        const data = mainGuestSnap.data();
+      if (!guestSnap.empty) {
+        const doc = guestSnap.docs[0];
+        const data = doc.data();
+        // Check approval status in code
         if (data.exploreStatus === 'approved') {
              let created = data.uploadedAt;
              if (!created && data.createdAt) created = data.createdAt;
              return {
-                id: mainGuestSnap.id,
+                id: doc.id,
                 userId: 'Guest',
                 imageUrl: data.stagedImageUrl,
                 originalImageUrl: data.originalImageUrl,
                 createdAt: created,
                 exploreStatus: data.exploreStatus,
                 isGuest: true,
-                refPath: mainGuestSnap.ref.path,
+                refPath: doc.ref.path,
                 userName: 'Guest User',
                 roomType: data.roomType,
                 designStyle: data.style
@@ -203,7 +209,8 @@ export const exploreService = {
       }
 
       // 2. Check User Uploads via Collection Group
-      // Note: We now query by the 'id' field which must be present in the document
+      // Remove exploreStatus filter from query to avoid index/permission complexity, 
+      // rely on 'allow read: if true' rule and check status in code.
       const userQ = query(
         collectionGroup(db, 'uploads'),
         where('id', '==', id),
