@@ -42,3 +42,8 @@ next-env.d.ts
 
 # backup
 _backup_models/
+
+# firebase rules
+firestore.rules
+storage.rules
+database.rules.json
