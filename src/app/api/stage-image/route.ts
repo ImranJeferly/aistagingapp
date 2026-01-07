@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     const config = {
       responseModalities: ['IMAGE', 'TEXT'], // Requesting Image!
       imageConfig: {
-        imageSize: '2K', // Requesting 3K resolution
+        imageSize: '1K', // Requesting 3K resolution
       },
     };
 
