@@ -2,6 +2,7 @@ import {
   collection, 
   doc, 
   addDoc, 
+  setDoc,
   query, 
   where, 
   getDocs, 
@@ -71,11 +72,15 @@ export const addCompletedUploadRecord = async (uploadData: Omit<UploadRecord, 'i
   try {
     // Store upload records in the user's uploads subcollection - only for completed uploads
     const uploadsRef = collection(db, 'users', uploadData.userId, 'uploads');
-    const docRef = await addDoc(uploadsRef, {
+    // Generate doc ref first to get ID
+    const newDocRef = doc(uploadsRef);
+    
+    await setDoc(newDocRef, {
       ...uploadData,
+      id: newDocRef.id,
       status: 'completed' as const
     });
-    return docRef.id;
+    return newDocRef.id;
   } catch (error) {
     console.error('Error adding upload record:', error);
     throw error;

@@ -98,7 +98,7 @@ export default function AuthLayout({ children, title, subtitle, variant = 'login
     <div className="min-h-screen bg-[#FFFCF5] flex overflow-hidden">
       {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 sm:px-12 lg:px-24 relative z-10">
-        <div className="max-w-md w-full mx-auto">
+        <div className="max-w-md w-full mx-auto transform scale-90 origin-center">
           {/* Logo */}
           <Link href="/" className="inline-flex items-center gap-2 sm:gap-3 mb-12 hover:opacity-80 transition-opacity">
             <img 
@@ -151,9 +151,11 @@ export default function AuthLayout({ children, title, subtitle, variant = 'login
         </div> */}
         
         {/* Geometric Shapes */}
-        {theme.shapes.map((shape, index) => (
-          <div key={`shape-${index}`} className={shape.className} />
-        ))}
+        <div className="absolute inset-0 w-full h-full transform scale-90 origin-center pointer-events-none">
+          {theme.shapes.map((shape, index) => (
+            <div key={`shape-${index}`} className={shape.className} />
+          ))}
+        </div>
       </div>
     </div>
   );

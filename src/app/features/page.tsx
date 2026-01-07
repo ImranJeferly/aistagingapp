@@ -231,12 +231,12 @@ export default function FeaturesPage() {
               <h2 className="font-brand text-6xl font-bold text-black mb-6">
                 Ready to Transform Your Listings?
               </h2>
-              <WigglyLine 
+              {/* <WigglyLine 
                 position={{ bottom: '-20px', right: '-40px' }} 
                 rotation="0deg" 
                 vectorNumber={3} 
                 scale={0.3}
-              />
+              /> */}
             </div>
             <p className="text-2xl text-gray-700 mb-10 max-w-2xl mx-auto mt-8 font-medium">
               Join thousands of real estate agents using AI to sell homes faster. 

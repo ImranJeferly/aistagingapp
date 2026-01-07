@@ -100,7 +100,7 @@ export default function ExplorePage() {
                   onMouseEnter={() => setHoveredId(item.id)}
                   onMouseLeave={() => setHoveredId(null)}
                 >
-                  <div className={`h-64 w-full ${item.color} relative overflow-hidden border-b-2 border-black`}>
+                  <div className={`h-80 w-full ${item.color} relative overflow-hidden`}>
                     {item.imageUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
@@ -122,15 +122,6 @@ export default function ExplorePage() {
                     
                     <div className="absolute top-4 left-4 bg-white px-3 py-1 rounded-md border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-xs font-bold font-brand">
                       {item.style}
-                    </div>
-                  </div>
-                  
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        {/* Removed Title as per request for consistency with home */}
-                        <p className="text-lg text-gray-800 font-bold">by {item.author}</p>
-                      </div>
                     </div>
                   </div>
                 </motion.div>

@@ -203,11 +203,10 @@ export const exploreService = {
       }
 
       // 2. Check User Uploads via Collection Group
-      // Note: This requires the collection group index we just made + documentId()
-      const { documentId } = await import('firebase/firestore');
+      // Note: We now query by the 'id' field which must be present in the document
       const userQ = query(
         collectionGroup(db, 'uploads'),
-        where(documentId(), '==', id),
+        where('id', '==', id),
         limit(1)
       );
       

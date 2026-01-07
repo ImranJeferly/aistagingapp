@@ -92,9 +92,10 @@ export default function ExploreDetailPage({ params }: { params: Promise<{ id: st
                                 <h3 className="font-black text-xl uppercase">{image.roomType}</h3>
                                 <p className="text-gray-500 font-bold">{image.designStyle} Style</p>
                             </div>
-                            <div className="text-sm font-bold bg-green-100 px-3 py-1 rounded-full border border-black">
+                            {/* Removed username display as per request */}
+                            {/* <div className="text-sm font-bold bg-green-100 px-3 py-1 rounded-full border border-black">
                                 Staged by {image.userName || 'Anonymous'}
-                            </div>
+                            </div> */}
                         </div>
                      </div>
                  )}

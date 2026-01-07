@@ -30,7 +30,7 @@ export default function ExploreGallery() {
           return {
             id: img.id,
             title: `${img.roomType || 'Room'} Makeover`,
-            author: img.userName || `User ${img.userId.substring(0,6)}`,
+            author: '', // Hidden in UI
             style: img.designStyle || 'Modern',
             likes: Math.floor(Math.random() * 300) + 50, // Mock likes for now
             imageUrl: img.imageUrl,
@@ -108,7 +108,7 @@ export default function ExploreGallery() {
                 onMouseLeave={() => setHoveredId(null)}
               >
                 {/* Image Placeholder Area */}
-                <div className={`h-64 w-full ${item.color} relative overflow-hidden border-b-2 border-black`}>
+                <div className={`h-80 w-full ${item.color} relative overflow-hidden`}>
                   {item.imageUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
@@ -135,15 +135,6 @@ export default function ExploreGallery() {
                   {/* Style Tag */}
                   <div className="absolute top-4 left-4 bg-white px-3 py-1 rounded-md border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-xs font-bold font-brand">
                     {item.style}
-                  </div>
-                </div>
-
-                {/* Content Area */}
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-lg text-gray-800 font-bold">by {item.author}</p>
-                    </div>
                   </div>
                 </div>
               </motion.div>

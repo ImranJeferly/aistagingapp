@@ -183,7 +183,7 @@ export default function Navigation() {
         />
       )}{/* Mobile Menu - Slide from right, full height and width */}
       <div className={`
-        lg:hidden fixed top-0 right-0 h-screen w-full sm:w-[400px] bg-[#FFFCF5] border-l-2 border-black z-[999]
+        lg:hidden fixed top-0 right-0 h-[100dvh] w-full sm:w-[400px] bg-[#FFFCF5] border-l-2 border-black z-[999]
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
@@ -207,8 +207,8 @@ export default function Navigation() {
               </svg>
             </button>
           </div>          {/* Mobile Menu Content */}
-          <div className="flex-1 overflow-y-auto px-6 py-8">            {/* Navigation Links */}
-            <nav className="space-y-4 mb-8">
+          <div className="flex-1 overflow-y-auto px-6 py-4">            {/* Navigation Links */}
+            <nav className="space-y-1 mb-6">
               {[
                 { href: '/features', label: 'Features' },
                 { href: '/upload', label: 'Upload' },
@@ -219,7 +219,7 @@ export default function Navigation() {
                 <Link 
                   key={link.href}
                   href={link.href} 
-                  className="block py-3 px-4 text-black font-bold text-lg border-2 border-transparent hover:border-black hover:bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-lg transition-all duration-200"
+                  className="block py-2 px-4 text-black font-bold text-lg border-2 border-transparent hover:border-black hover:bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-lg transition-all duration-200"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.label}
@@ -273,17 +273,17 @@ export default function Navigation() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <Link 
                     href="/profile"
-                    className="block w-full py-3 px-4 bg-white text-black font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-gray-50 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                    className="block w-full py-2 px-4 bg-white text-black font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-gray-50 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Profile
                   </Link>
                   <Link 
                     href="/upload"
-                    className="block w-full py-3 px-4 bg-[#8B5CF6] text-white font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                    className="block w-full py-2 px-4 bg-[#8B5CF6] text-white font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Upload Image
@@ -293,23 +293,23 @@ export default function Navigation() {
                       logout();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="block w-full py-3 px-4 bg-white text-black font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-gray-50 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                    className="block w-full py-2 px-4 bg-white text-black font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center hover:bg-gray-50 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                   >
                     Sign Out
                   </button>
                 </div>
               </div>            ) : (
-              <div className="pt-6 space-y-4">
+              <div className="pt-6 space-y-2">
                 <Link 
                   href="/login"
-                  className="block w-full py-3 px-4 bg-white text-black font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center text-lg hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                  className="block w-full py-2 px-4 bg-white text-black font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center text-lg hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link 
                   href="/register"
-                  className="block w-full py-3 px-4 bg-[#8B5CF6] text-white font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center text-lg hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
+                  className="block w-full py-2 px-4 bg-[#8B5CF6] text-white font-black rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-center text-lg hover:bg-[#A78BFA] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Register
