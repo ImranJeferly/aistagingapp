@@ -142,6 +142,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#3b82f6" />
 
+        {/* Ahrefs Analytics */}
+        <script src="https://analytics.ahrefs.com/analytics.js" data-key="ohTa5J+qhjePVDV8qSdNUQ" async></script>
+
         {/* Organization Structured Data for Google Sitelinks */}
         <script
           type="application/ld+json"
