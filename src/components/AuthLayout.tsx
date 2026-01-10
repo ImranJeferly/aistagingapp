@@ -26,8 +26,8 @@ const VARIANTS = {
       { src: "/lamp.png", className: "absolute top-[15%] left-[20%] w-32 h-auto object-contain drop-shadow-[8px_8px_0px_rgba(0,0,0,1)] z-10" }
     ],
     vectors: [
-      { src: "/Vector 1.svg", className: "absolute top-0 right-0 w-full h-full object-cover opacity-10 pointer-events-none" },
-      { src: "/Vector 2.svg", className: "absolute bottom-0 left-0 w-1/2 h-1/2 object-contain opacity-20 pointer-events-none" }
+      { src: "/Vector 1.svg", className: "absolute top-0 right-0 w-full h-full object-cover opacity-10 pointer-events-none", alt: "Abstract geometric wave design" },
+      { src: "/Vector 2.svg", className: "absolute bottom-0 left-0 w-1/2 h-1/2 object-contain opacity-20 pointer-events-none", alt: "Curved abstract background element" }
     ]
   },
   register: {
@@ -43,8 +43,8 @@ const VARIANTS = {
       { src: "/stool.png", className: "absolute bottom-[35%] left-[25%] w-24 h-auto object-contain drop-shadow-[8px_8px_0px_rgba(0,0,0,1)] z-10" }
     ],
     vectors: [
-      { src: "/Vector 3.svg", className: "absolute top-0 left-0 w-full h-full object-cover opacity-10 pointer-events-none" },
-      { src: "/Vector 4.svg", className: "absolute bottom-0 right-0 w-1/2 h-1/2 object-contain opacity-20 pointer-events-none" }
+      { src: "/Vector 3.svg", className: "absolute top-0 left-0 w-full h-full object-cover opacity-10 pointer-events-none", alt: "Fluid abstract background shape" },
+      { src: "/Vector 4.svg", className: "absolute bottom-0 right-0 w-1/2 h-1/2 object-contain opacity-20 pointer-events-none", alt: "Geometric wave background pattern" }
     ]
   },
   verify: {
@@ -60,8 +60,8 @@ const VARIANTS = {
       { src: "/stool.png", className: "absolute bottom-[25%] left-[15%] w-28 h-auto object-contain drop-shadow-[8px_8px_0px_rgba(0,0,0,1)] z-10" }
     ],
     vectors: [
-      { src: "/Vector 1.svg", className: "absolute top-0 left-0 w-full h-full object-cover opacity-10 pointer-events-none" },
-      { src: "/Vector 2.svg", className: "absolute bottom-0 right-0 w-1/2 h-1/2 object-contain opacity-20 pointer-events-none" }
+      { src: "/Vector 1.svg", className: "absolute top-0 left-0 w-full h-full object-cover opacity-10 pointer-events-none", alt: "Abstract geometric wave design" },
+      { src: "/Vector 2.svg", className: "absolute bottom-0 right-0 w-1/2 h-1/2 object-contain opacity-20 pointer-events-none", alt: "Curved abstract background element" }
     ]
   }
 };
@@ -134,7 +134,7 @@ export default function AuthLayout({ children, title, subtitle, variant = 'login
             key={`vector-${index}`}
             src={vector.src} 
             className={vector.className}
-            alt=""
+            alt={vector.alt}
           />
         ))}
 
