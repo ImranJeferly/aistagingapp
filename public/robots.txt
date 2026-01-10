@@ -9,7 +9,7 @@ Disallow: /upload
 Disallow: /api/
 
 # Sitemap location
-Sitemap: https://aistagingapp.com/sitemap.xml
+Sitemap: https://www.aistagingapp.com/sitemap.xml
 
 # Crawl delay (optional)
 Crawl-delay: 1
