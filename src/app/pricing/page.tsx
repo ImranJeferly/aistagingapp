@@ -9,7 +9,7 @@ export default function PricingPage() {
       <main className="pt-32">
         <div className="">
           
-          <PricingSection />
+          <PricingSection isPage={true} />
         </div>
       </main>
       <Footer />
