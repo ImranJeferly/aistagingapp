@@ -12,10 +12,6 @@ export const metadata: Metadata = {
     title: "Login - AI Staging App",
     description: "Sign in to your AI Staging App account. Access professional AI home staging tools for real estate marketing.",
   },
-  robots: {
-    index: false, // Don't index login pages
-    follow: false,
-  },
 };
 
 export default function LoginLayout({
