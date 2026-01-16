@@ -85,12 +85,36 @@ export const exploreService = {
             createdAt: data.uploadedAt,
             exploreStatus: data.exploreStatus || 'pending',
             isGuest: true,
-            refPath: doc.ref.path
+            refPath: doc.ref.path,
+            userName: 'Guest'
           } as StagedImage;
       });
 
+      // Fetch user details
+      const userIds = [...new Set(userImages.map(img => img.userId))];
+      const userMap = new Map<string, string>();
+      
+      await Promise.all(userIds.map(async (uid) => {
+          if(!uid) return;
+          try {
+              const userSnap = await getDoc(doc(db, "users", uid));
+              if(userSnap.exists()) {
+                  const userData = userSnap.data();
+                  const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+                  userMap.set(uid, fullName || userData.displayName || uid);
+              }
+          } catch (e) {
+              console.error("Error fetching user details:", e);
+          }
+      }));
+
+      const enrichedUserImages = userImages.map(img => ({
+          ...img,
+          userName: userMap.get(img.userId) || img.userName || img.userId
+      }));
+
       // Merge and Sort
-      const allImages = [...userImages, ...guestImages].sort((a, b) => {
+      const allImages = [...enrichedUserImages, ...guestImages].sort((a, b) => {
          const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : (a.createdAt as any).seconds * 1000 || 0;
          const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : (b.createdAt as any).seconds * 1000 || 0;
          return dateB - dateA;

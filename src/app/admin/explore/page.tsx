@@ -163,7 +163,7 @@ export default function AdminExplorePage() {
                 <div className="flex items-center gap-2 text-gray-600">
                   <User size={14} />
                   <span className="truncate flex-1" title={image.userId || 'Guest'}>
-                    User: {image.userId ? `${image.userId.substring(0, 8)}...` : 'Guest'}
+                    User: {image.userName || (image.userId ? `${image.userId.substring(0, 8)}...` : 'Guest')}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
