@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import gsap from 'gsap';
+import { exploreService, StagedImage } from '../services/exploreService';
 import Navigation from '../components/Navigation';
 import Button from '../components/Button';
 import AuthButton from '../components/AuthButton';
+import ComparisonViewer from '../components/ComparisonViewer';
 // import FloatingElement from '../components/FloatingElement';
 // import Floating3DModel from '../components/Floating3DModel';
 import Badge from '../components/Badge';
@@ -61,23 +63,46 @@ const jsonLd = {
 export default function Home() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const [heroImage, setHeroImage] = useState<StagedImage | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Refs for animation
   const badgeRef = useRef(null);
   const word1Ref = useRef(null);
   const word2Ref = useRef(null);
   const word3Ref = useRef(null);
   const freeTagRef = useRef(null);
   const appNameRef = useRef(null);
-  const subtitleRef = useRef(null);
+  const subTitleRef = useRef(null);
   const ctaRef = useRef(null);
-  const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const imageRef = useRef(null);
 
   useEffect(() => {
     // Check if this is the first visit in this session (direct entry)
-    // If app_session_active is NOT set, it means we just landed here.
     const hasVisited = sessionStorage.getItem('app_session_active');
     if (!hasVisited) {
       setIsFirstVisit(true);
     }
+
+    // Fetch random image
+    const fetchRandomHeroImage = async () => {
+      try {
+        const images = await exploreService.getStagedImagesByStatus('approved', 50);
+        if (images.length > 0) {
+          const validImages = images.filter(img => img.originalImageUrl && img.imageUrl);
+          if (validImages.length > 0) {
+            const randomIndex = Math.floor(Math.random() * validImages.length);
+            setHeroImage(validImages[randomIndex]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching hero images:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRandomHeroImage();
   }, []);
 
   useEffect(() => {
@@ -88,49 +113,74 @@ export default function Home() {
   }, [isAuthenticated, isLoading, router, isFirstVisit]);
 
   useEffect(() => {
-    const tl = gsap.timeline({ defaults: { ease: "back.out(1.7)", duration: 1 } });
+    const ctx = gsap.context(() => {
+        const tl = gsap.timeline({ defaults: { ease: "power3.out", duration: 1 } });
 
-    // Badge animation
-    tl.fromTo(badgeRef.current, 
-      { y: -50, opacity: 0, scale: 0.5, rotation: -15 },
-      { y: 0, opacity: 1, scale: 1, rotation: -1, delay: 0.2 }
-    );
+        // Badge animation
+        if (badgeRef.current) {
+            tl.fromTo(badgeRef.current, 
+                { y: 20, autoAlpha: 0 }, 
+                { y: 0, autoAlpha: 1, delay: 0.2 }
+            );
+        }
 
-    // Words animation (staggered)
-    const words = [word1Ref.current, word2Ref.current, word3Ref.current];
-    tl.fromTo(words, 
-      { y: 50, opacity: 0, rotation: 10 },
-      { y: 0, opacity: 1, rotation: 0, stagger: 0.15, ease: "elastic.out(1, 0.75)" },
-      "-=0.5"
-    );
+        // Words animation (staggered)
+        const words = [word1Ref.current, word2Ref.current, word3Ref.current].filter(Boolean);
+        if (words.length > 0) {
+            tl.fromTo(words, 
+                { y: 50, autoAlpha: 0, rotation: 10 },
+                { y: 0, autoAlpha: 1, rotation: 0, stagger: 0.15, ease: "elastic.out(1, 0.75)" },
+                "-=0.7"
+            );
+        }
 
-    // "100% Free" tag pop in
-    tl.fromTo(freeTagRef.current,
-      { scale: 0, rotation: -15, opacity: 0 },
-      { scale: 1, rotation: -2, opacity: 1, ease: "elastic.out(1, 0.5)" },
-      "-=0.5"
-    );
+        // "100% Free" tag pop in
+        if (freeTagRef.current) {
+            tl.fromTo(freeTagRef.current,
+                { scale: 0, rotation: -15, autoAlpha: 0 },
+                { scale: 1, rotation: -2, autoAlpha: 1, ease: "elastic.out(1, 0.5)" },
+                "-=0.5"
+            );
+        }
 
-    // "AI Staging App" slide in
-    tl.fromTo(appNameRef.current,
-      { x: 50, opacity: 0 },
-      { x: 0, opacity: 1, ease: "power3.out" },
-      "-=0.8"
-    );
+        // "AI Staging App" slide in
+        if (appNameRef.current) {
+            tl.fromTo(appNameRef.current,
+                { x: 50, autoAlpha: 0 },
+                { x: 0, autoAlpha: 1, ease: "power3.out" },
+                "-=0.8"
+            );
+        }
 
-    // Subtitle
-    tl.fromTo(subtitleRef.current,
-      { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, ease: "power3.out" },
-      "-=0.6"
-    );
+        // Subtitle
+        if (subTitleRef.current) {
+            tl.fromTo(subTitleRef.current,
+                { y: 20, autoAlpha: 0 },
+                { y: 0, autoAlpha: 1 },
+                "-=0.6"
+            );
+        }
 
-    // CTA
-    tl.fromTo(ctaRef.current,
-      { y: 30, opacity: 0, scale: 0.8 },
-      { y: 0, opacity: 1, scale: 1 },
-      "-=0.6"
-    );
+        // CTA
+        if (ctaRef.current) {
+            tl.fromTo(ctaRef.current,
+                { y: 20, autoAlpha: 0 },
+                { y: 0, autoAlpha: 1 },
+                "-=0.6"
+            );
+        }
+        
+        // Image Side
+        if (imageRef.current) {
+            tl.fromTo(imageRef.current,
+                { x: 50, autoAlpha: 0 },
+                { x: 0, autoAlpha: 1, duration: 1.2 },
+                "-=1"
+            );
+        }
+    });
+
+    return () => ctx.revert();
   }, []);
 
   return (
@@ -148,7 +198,7 @@ export default function Home() {
         {/* Background gradient removed for cleaner look */}
         
         {/* Hero Content with padding-top to account for fixed navigation */}
-        <div className="relative pt-24 min-h-screen">
+        <div className="relative pt-24 min-h-screen flex flex-col justify-center">
 
           {/* Floating 3D Objects - positioned relative to hero section */}
           {/* <Floating3DModel 
@@ -216,43 +266,86 @@ export default function Home() {
           /> */}
 
           {/* Main Content */}
-          <main className="relative z-10 flex flex-col items-center justify-center min-h-[70vh] px-8 text-center">
-            {/* Badge */}
-            <div ref={badgeRef} className="bg-white px-6 py-2 rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black text-sm mb-8 font-bold tracking-wide transform -rotate-1 opacity-0">
-              ✨ #1 AI STAGING APP
+          <main className="relative z-10 flex flex-col lg:flex-row items-center gap-12 lg:gap-20 w-[90%] max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 mt-8 pb-24">
+            {/* Left Content */}
+            <div className="flex-1 text-left z-10 w-full lg:w-1/2">
+                <div ref={badgeRef} className="inline-block mb-6" style={{ opacity: 0 }}>
+                    <span className="bg-white px-4 py-1.5 rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black text-sm font-bold tracking-wide transform -rotate-2 inline-block">
+                        ✨ #1 AI Staging App
+                    </span>
+                </div>
+
+                <div>
+                    <h1 className="font-brand text-[#1a1a1a] text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight text-left">
+                        <div className="inline-block overflow-hidden">
+                            <span ref={word1Ref} className="inline-block" style={{ opacity: 0 }}>Stage</span>
+                        </div>{' '}
+                        <div className="inline-block overflow-hidden">
+                            <span ref={word2Ref} className="inline-block" style={{ opacity: 0 }}>Your</span>
+                        </div>{' '}
+                        <div className="inline-block overflow-hidden">
+                            <span ref={word3Ref} className="inline-block" style={{ opacity: 0 }}>Listing</span>
+                        </div>
+                        <br />
+                        <div className="mt-2 flex flex-wrap justify-start items-center gap-3">
+                            <span ref={freeTagRef} className="bg-[#FACC15] text-black px-4 py-1 rounded-md transform -rotate-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" style={{ opacity: 0 }}>
+                                100% Free
+                            </span>
+                            <span ref={appNameRef} style={{ opacity: 0 }}>AI Staging App</span>
+                        </div>
+                    </h1>
+                </div>
+
+                <p ref={subTitleRef} className="text-gray-700 text-base md:text-lg mb-10 max-w-xl leading-relaxed font-medium" style={{ opacity: 0 }}>
+                    Transform empty rooms into irresistible living spaces in seconds using our advanced AI technology. No expensive furniture rentals required.
+                </p>
+
+                <div ref={ctaRef} className="flex flex-wrap gap-4" style={{ opacity: 0 }}>
+                    <AuthButton 
+                        size="lg" 
+                        className="!px-8 !py-4 !text-xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all"
+                        redirectTo="/upload"
+                    >
+                        Start Staging Free
+                    </AuthButton>
+                </div>
             </div>
 
-            {/* Main heading */}
-            <h1 className="font-brand text-[#1a1a1a] text-5xl md:text-6xl lg:text-7xl font-bold mb-8 max-w-5xl leading-[1.1] tracking-tight">
-              <div className="inline-block overflow-hidden">
-                <span ref={word1Ref} className="inline-block opacity-0">Stage</span>
-              </div>{' '}
-              <div className="inline-block overflow-hidden">
-                <span ref={word2Ref} className="inline-block opacity-0">Your</span>
-              </div>{' '}
-              <div className="inline-block overflow-hidden">
-                <span ref={word3Ref} className="inline-block opacity-0">Listing</span>
-              </div>
-              <br />
-              <div className="mt-2 flex flex-wrap justify-center items-center gap-3">
-                <span ref={freeTagRef} className="bg-[#FACC15] text-black px-4 py-1 rounded-md transform -rotate-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] opacity-0">
-                  100% Free
-                </span>
-                <span ref={appNameRef} className="opacity-0">AI Staging App</span>
-              </div>
-            </h1>
+            {/* Right Content - Comparison/Image */}
+            <div ref={imageRef} className="flex-1 w-full lg:w-1/2 relative z-10" style={{ opacity: 0 }}>
+                {/* Decorative Elements */}
+                <div className="absolute -top-12 -right-12 w-64 h-64 bg-purple-200 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
+                <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-yellow-200 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
 
-            {/* Subtitle */}
-            <p ref={subtitleRef} className="text-gray-700 text-lg md:text-xl mb-12 max-w-2xl leading-relaxed font-medium opacity-0">
-              AI Staging App is the most powerful free platform for real estate agents and homeowners.<br />
-              Transform empty rooms into stunning spaces and visualize beautiful interiors instantly with artificial intelligence.
-            </p>
+                {loading ? (
+                    <div className="w-full aspect-[4/3] bg-gray-100 rounded-2xl border-4 border-black border-dashed flex items-center justify-center animate-pulse">
+                        <p className="font-bold text-gray-400">Loading generative previews...</p>
+                    </div>
+                ) : heroImage ? (
+                    <div className="relative">
+                        <div className="rounded-2xl overflow-hidden border-2 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] bg-white relative">
+                            <ComparisonViewer 
+                                beforeImage={heroImage.originalImageUrl || heroImage.imageUrl} 
+                                afterImage={heroImage.imageUrl}
+                            />
+                        </div>
+                    </div>
+                ) : (
 
-            {/* CTA Button */}
-            <div ref={ctaRef} className="transform hover:-translate-y-1 transition-transform duration-200 opacity-0">
-              <AuthButton size="lg" hoverColor="bg-purple-400" redirectTo="/upload">
-                Get Started
-              </AuthButton>
+                    // Fallback if no images found
+                    <div className="w-full aspect-[4/3] bg-[#E0F2FE] rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center p-8 text-center">
+                        <div>
+                            <h3 className="text-2xl font-brand font-bold mb-2">Ready to see magic?</h3>
+                            <p className="mb-6">Upload your first photo to see the transformation.</p>
+                            <AuthButton 
+                                className="inline-block bg-white text-black font-bold px-6 py-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-lg hover:-translate-y-1 transition-transform"
+                                redirectTo="/upload"
+                            >
+                                Upload Now
+                            </AuthButton>
+                        </div>
+                    </div>
+                )}
             </div>
           </main>
 
