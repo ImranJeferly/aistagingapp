@@ -69,7 +69,7 @@ export default function RegisterPage() {
         email: formData.email.trim(),
         password: formData.password
       });
-      router.push('/verify-email');
+      router.push('/upload');
     } catch (err: any) {
       setErrors([err.message || 'Registration failed']);
     }
