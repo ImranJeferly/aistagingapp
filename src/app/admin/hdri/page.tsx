@@ -108,47 +108,60 @@ export default function HDRIGenerationPage() {
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdStartRef = useRef<number | null>(null);
   
-  // Calculate the direction the camera is pointing based on device orientation
-  // Device Orientation API:
-  // - alpha (0-360): compass direction (0 = North, 90 = East, 180 = South, 270 = West)
-  // - beta (-180 to 180): front-to-back tilt (90 = vertical, 0 = flat face up, 180 = flat face down)
-  // - gamma (-90 to 90): left-to-right tilt
+  // ==========================================================================
+  // DEVICE ORIENTATION TO CAMERA DIRECTION
+  // ==========================================================================
+  // Based on W3C Device Orientation API specification:
+  // https://w3c.github.io/deviceorientation/
+  //
+  // The Device Orientation API uses intrinsic Tait-Bryan angles Z-X'-Y'':
+  // 1. alpha (0-360): Rotation around Z axis (compass direction)
+  //    - 0 = North, 90 = East, 180 = South, 270 = West
+  //    - When you rotate device RIGHT (clockwise from above), alpha INCREASES
+  //
+  // 2. beta (-180 to 180): Rotation around X axis (front-back tilt)
+  //    - 0 = device flat, screen up
+  //    - 90 = device vertical, screen facing user
+  //    - 180/-180 = device flat, screen down
+  //
+  // 3. gamma (-90 to 90): Rotation around Y axis (left-right tilt)
+  //    - 0 = no tilt
+  //    - 90 = tilted right
+  //    - -90 = tilted left
+  //
+  // Our coordinate system for HDRI capture:
+  // - Azimuth: 0 = initial forward direction, increases clockwise (to the right)
+  // - Elevation: 0 = horizon, +90 = straight up (ceiling), -90 = straight down (floor)
+  // ==========================================================================
   
   const currentAzimuth = useCallback(() => {
-    // Alpha is compass heading - when you turn RIGHT, alpha INCREASES
-    // We want azimuth to represent where the camera is pointing
-    // Subtract from initial to get relative rotation from start position
+    // When device rotates RIGHT (clockwise from above), alpha INCREASES
+    // Our azimuth should also INCREASE when we turn RIGHT
+    // So azimuth = alpha - initialAlpha (relative to starting direction)
     let azimuth = orientation.alpha;
     if (initialAlpha !== null) {
-      // When device rotates RIGHT (clockwise from above), alpha increases
-      // So camera points to a HIGHER azimuth value
       azimuth = (orientation.alpha - initialAlpha + 360) % 360;
     }
     return azimuth;
   }, [orientation.alpha, initialAlpha]);
   
   const currentElevation = useCallback(() => {
-    // Beta represents front-to-back tilt:
-    // - beta = 90: phone vertical, camera pointing at horizon (elevation = 0)
-    // - beta = 0: phone flat, camera pointing UP at ceiling (elevation = +90)
-    // - beta = 180/-180: phone flat face down, camera pointing DOWN (elevation = -90)
-    // - beta < 90: phone tilted back, camera pointing UP (elevation > 0)
-    // - beta > 90: phone tilted forward, camera pointing DOWN (elevation < 0)
+    // Beta behavior (when holding phone in portrait, screen facing you):
+    // - beta = 90: phone vertical, camera pointing at horizon → elevation = 0
+    // - beta = 0: phone flat face up, camera pointing at ceiling → elevation = +90
+    // - beta = 180: phone flat face down, camera pointing at floor → elevation = -90
+    // - beta < 90: phone tilted back → camera pointing UP → positive elevation
+    // - beta > 90: phone tilted forward → camera pointing DOWN → negative elevation
+    //
+    // Formula: elevation = 90 - beta
+    // But we need to handle the range properly
     
-    let beta = orientation.beta;
-    let elevation: number;
+    const beta = orientation.beta;
     
-    if (beta >= 0 && beta <= 180) {
-      // Normal range: 0 to 180
-      // beta 90 -> elevation 0 (horizon)
-      // beta 0 -> elevation 90 (straight up)
-      // beta 180 -> elevation -90 (straight down)
-      elevation = 90 - beta;
-    } else {
-      // beta is negative (rare on most devices)
-      // beta -90 -> elevation 180 (which we clamp)
-      elevation = 90 - beta;
-    }
+    // For standard portrait usage, beta is typically 0 to 180
+    // elevation = 90 - beta gives us:
+    // beta=0 → 90 (ceiling), beta=90 → 0 (horizon), beta=180 → -90 (floor)
+    let elevation = 90 - beta;
     
     // Clamp to valid range
     elevation = Math.max(-90, Math.min(90, elevation));
@@ -509,70 +522,111 @@ export default function HDRIGenerationPage() {
     });
   };
 
-  // Calculate position of target in camera view (returns x, y from -1 to 1, or null if not visible)
-  // x: -1 = left edge, 0 = center, 1 = right edge
-  // y: -1 = top edge, 0 = center, 1 = bottom edge
+  // ==========================================================================
+  // SCREEN POSITION CALCULATION
+  // ==========================================================================
+  // This converts a 3D target position to 2D screen coordinates.
+  //
+  // Key insight: The CAMERA moves, not the targets. So if the camera (device)
+  // turns RIGHT, targets appear to move LEFT on screen.
+  //
+  // Screen coordinates:
+  // - x: negative = left side of screen, positive = right side
+  // - y: negative = top of screen, positive = bottom
+  // ==========================================================================
   const getTargetScreenPosition = (target: typeof CAPTURE_TARGETS[0]) => {
     const cameraAzimuth = currentAzimuth();
     const cameraElevation = currentElevation();
     
-    // Calculate how far the target is from where camera is pointing
-    // Positive azDiff = target is to the RIGHT of camera view
-    // Negative azDiff = target is to the LEFT of camera view
+    // Calculate the difference between target position and camera direction
+    // This tells us where the target is RELATIVE to where camera is pointing
     let azDiff = target.azimuth - cameraAzimuth;
     
-    // Handle wraparound (e.g., camera at 350°, target at 10° should be +20° not -340°)
+    // Handle wraparound for azimuth
     if (azDiff > 180) azDiff -= 360;
     if (azDiff < -180) azDiff += 360;
     
-    // Positive elDiff = target is ABOVE camera view
-    // Negative elDiff = target is BELOW camera view
+    // Elevation difference
     const elDiff = target.elevation - cameraElevation;
     
-    // Approximate camera field of view in degrees
-    const hFov = 60; // Horizontal FOV
-    const vFov = 80; // Vertical FOV
+    // Camera field of view in degrees (approximate for mobile camera)
+    const hFov = 60;
+    const vFov = 80;
     
-    // Check if target is within extended view (with margin for partial visibility)
-    const margin = 25;
+    // Check if target is within visible area (with margin for edge indicators)
+    const margin = 30;
     if (Math.abs(azDiff) > hFov / 2 + margin || Math.abs(elDiff) > vFov / 2 + margin) {
       return null;
     }
     
-    // Convert to normalized screen coordinates
-    // Target to the RIGHT (positive azDiff) -> positive x (right side of screen)
-    const x = azDiff / (hFov / 2);
+    // ==========================================================================
+    // CRITICAL: Screen coordinate mapping
+    // ==========================================================================
+    // When target azimuth is GREATER than camera azimuth (azDiff > 0):
+    //   - Target is to the RIGHT of where camera points
+    //   - BUT camera moved RIGHT to get there, so target appears on LEFT
+    //   - Therefore: x = -azDiff (NEGATE!)
+    //
+    // When target elevation is GREATER than camera elevation (elDiff > 0):
+    //   - Target is ABOVE where camera points (ceiling direction)
+    //   - BUT camera tilted UP to get there, so target appears at BOTTOM
+    //   - In screen coordinates, positive y = down
+    //   - Therefore: y = -elDiff (NEGATE!)
+    //
+    // Wait, let's think again more carefully:
+    //   - azDiff = target.azimuth - camera.azimuth
+    //   - If target is at azimuth 90 and camera is at azimuth 0:
+    //     - azDiff = 90 - 0 = 90 (target is 90° to the RIGHT of camera)
+    //     - The target should appear on the RIGHT side of screen
+    //     - So x should be POSITIVE for target on right
+    //     - Therefore: x = azDiff / (hFov/2) ✓
+    //
+    //   - If target elevation is 45 and camera elevation is 0:
+    //     - elDiff = 45 - 0 = 45 (target is 45° ABOVE horizon)
+    //     - The target should appear at the TOP of screen
+    //     - Screen y-coordinate: negative = top, positive = bottom
+    //     - Therefore: y = -elDiff / (vFov/2) ✓
+    // ==========================================================================
     
-    // Target ABOVE (positive elDiff) -> negative y (top of screen, since CSS y increases downward)
-    const y = -elDiff / (vFov / 2);
+    // Normalize to -1 to 1 range
+    const x = azDiff / (hFov / 2);
+    const y = -elDiff / (vFov / 2);  // Negate because screen Y is inverted
     
     const distance = Math.sqrt(azDiff * azDiff + elDiff * elDiff);
     
     return { x, y, distance };
   };
 
-  // Get direction arrow for off-screen target
-  // Returns which way user should turn/tilt to find the target
+  // ==========================================================================
+  // OFF-SCREEN DIRECTION INDICATOR
+  // ==========================================================================
+  // When a target is not visible on screen, this tells the user which way
+  // to move the device to find it.
+  //
+  // The arrow should point in the direction the USER should MOVE the device:
+  // - Arrow pointing RIGHT means "turn the device to the right"
+  // - Arrow pointing UP means "tilt the device up"
+  // ==========================================================================
   const getOffScreenDirection = (target: typeof CAPTURE_TARGETS[0]) => {
     const cameraAzimuth = currentAzimuth();
     const cameraElevation = currentElevation();
     
-    // How far is target from camera direction?
+    // Calculate where target is relative to camera
     let azDiff = target.azimuth - cameraAzimuth;
     if (azDiff > 180) azDiff -= 360;
     if (azDiff < -180) azDiff += 360;
     const elDiff = target.elevation - cameraElevation;
     
-    // Determine primary direction to turn
-    // If vertical difference is larger, point up/down
-    // If horizontal difference is larger, point left/right
+    // Determine primary direction the user should turn/tilt
     if (Math.abs(elDiff) > Math.abs(azDiff)) {
-      // Target is above (elDiff > 0) -> tilt UP
-      // Target is below (elDiff < 0) -> tilt DOWN
+      // Vertical movement is primary
+      // elDiff > 0 means target is ABOVE current camera direction
+      // User should tilt UP to see it
       return elDiff > 0 ? 'up' : 'down';
     } else {
-      // Target is to the right (azDiff > 0) -> turn RIGHT
-      // Target is to the left (azDiff < 0) -> turn LEFT
+      // Horizontal movement is primary  
+      // azDiff > 0 means target is to the RIGHT of current camera direction
+      // User should turn RIGHT to see it
       return azDiff > 0 ? 'right' : 'left';
     }
   };
