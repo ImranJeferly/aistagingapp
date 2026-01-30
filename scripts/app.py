@@ -227,8 +227,7 @@ def stitch():
                     scale = 1080 / w
                     img = cv2.resize(img, (int(w * scale), int(h * scale)))
                 
-                # FLIP IMAGE HORIZONTALLY - phone cameras capture mirrored!
-                img = cv2.flip(img, 1)
+                # NOTE: Don't flip here - the U coordinate flip in projection handles it
                 
                 images.append(img)
                 azimuths.append(float(img_data.get('azimuth', 0)))
