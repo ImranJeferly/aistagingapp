@@ -57,15 +57,18 @@ def stitch_equirectangular_fast(images, azimuths, elevations):
     px_grid, py_grid = np.meshgrid(px, py)
     
     # Convert to spherical coordinates
-    # Azimuth: 0-360°, Elevation: +90 to -90°
-    out_azimuth = (px_grid / out_width) * 360.0
-    out_elevation = 90.0 - (py_grid / out_height) * 180.0
+    # Standard equirectangular: center of image = front (azimuth 0°/360°)
+    # Left edge = -180° (or 180°), Right edge = +180°
+    # We'll use 0-360 range but offset so center = 0°
+    out_azimuth = ((px_grid / out_width) * 360.0 + 180.0) % 360.0  # Center = 0°/360°
+    out_elevation = 90.0 - (py_grid / out_height) * 180.0  # Top = +90°, Bottom = -90°
     
     # Convert to radians
     out_az_rad = np.radians(out_azimuth)
     out_el_rad = np.radians(out_elevation)
     
     # Convert to 3D direction vectors (for all output pixels at once)
+    # Y-up coordinate system: X=right, Y=up, Z=forward
     dir_x = np.cos(out_el_rad) * np.sin(out_az_rad)
     dir_y = np.sin(out_el_rad)
     dir_z = np.cos(out_el_rad) * np.cos(out_az_rad)
@@ -82,21 +85,23 @@ def stitch_equirectangular_fast(images, azimuths, elevations):
         img_h, img_w = img.shape[:2]
         img_float = img.astype(np.float32)
         
-        # Camera basis vectors
+        # Camera basis vectors for image at (azimuth, elevation)
         az_rad = np.radians(img_az)
         el_rad = np.radians(img_el)
         
-        # Forward direction
+        # Forward direction (where camera is pointing)
         fwd = np.array([
             np.cos(el_rad) * np.sin(az_rad),
             np.sin(el_rad),
             np.cos(el_rad) * np.cos(az_rad)
         ])
         
-        # Right direction
-        right = np.array([np.cos(az_rad), 0, -np.sin(az_rad)])
+        # Right direction (NEGATED because image was flipped horizontally)
+        # Original right would be [cos(az), 0, -sin(az)]
+        # After horizontal flip, right becomes left, so negate it
+        right = np.array([-np.cos(az_rad), 0, np.sin(az_rad)])
         
-        # Up direction
+        # Up direction (unchanged by horizontal flip)
         up = np.array([
             -np.sin(el_rad) * np.sin(az_rad),
             np.cos(el_rad),
