@@ -49,15 +49,15 @@ def stitch_equirectangular(images, azimuths, elevations):
     start_time = time.time()
     
     # Output dimensions (2:1 aspect ratio for equirectangular)
-    out_width = 2048
-    out_height = 1024
+    # Reduced for speed on free tier - will upscale at end
+    out_width = 1024
+    out_height = 512
     
     # Camera FOV (after 65% center crop on frontend)
     h_fov = 40  # degrees
     v_fov = 55  # degrees
     
     print(f"Stitching {len(images)} images to {out_width}x{out_height}", file=sys.stderr)
-    print(f"FOV: {h_fov}° x {v_fov}°", file=sys.stderr)
     
     # Create output pixel coordinate grids
     px = np.arange(out_width, dtype=np.float32)
