@@ -1,8 +1,260 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RotateCcw, Check, X, Download, Smartphone, RefreshCw, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Camera, RotateCcw, Check, X, Download, Smartphone, RefreshCw, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Maximize2, Minimize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// ============================================================================
+// 360° PANORAMA VIEWER COMPONENT (WebGL-based for performance)
+// ============================================================================
+interface PanoramaViewerProps {
+  imageUrl: string;
+  onClose?: () => void;
+  isFullscreen?: boolean;
+}
+
+const PanoramaViewer = ({ imageUrl, onClose, isFullscreen = false }: PanoramaViewerProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const glRef = useRef<WebGLRenderingContext | null>(null);
+  const programRef = useRef<WebGLProgram | null>(null);
+  const textureRef = useRef<WebGLTexture | null>(null);
+  const animationRef = useRef<number>(0);
+  const isDraggingRef = useRef(false);
+  const lastMouseRef = useRef({ x: 0, y: 0 });
+  const rotationRef = useRef({ lon: 0, lat: 0 });
+  const targetRotationRef = useRef({ lon: 0, lat: 0 });
+  
+  // Vertex shader - simple fullscreen quad
+  const vertexShaderSource = `
+    attribute vec2 a_position;
+    varying vec2 v_texCoord;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+      v_texCoord = a_position * 0.5 + 0.5;
+    }
+  `;
+  
+  // Fragment shader - equirectangular to perspective projection
+  const fragmentShaderSource = `
+    precision highp float;
+    varying vec2 v_texCoord;
+    uniform sampler2D u_texture;
+    uniform float u_lon;
+    uniform float u_lat;
+    uniform float u_fov;
+    uniform float u_aspect;
+    
+    const float PI = 3.14159265359;
+    
+    void main() {
+      // Convert screen coords to ray direction
+      float fovRad = u_fov * PI / 180.0;
+      float halfFov = tan(fovRad * 0.5);
+      
+      vec2 uv = v_texCoord * 2.0 - 1.0;
+      uv.x *= u_aspect;
+      
+      // Ray direction in camera space
+      vec3 dir = normalize(vec3(uv.x * halfFov, uv.y * halfFov, -1.0));
+      
+      // Rotate by latitude (around X)
+      float cosLat = cos(u_lat);
+      float sinLat = sin(u_lat);
+      dir = vec3(
+        dir.x,
+        dir.y * cosLat - dir.z * sinLat,
+        dir.y * sinLat + dir.z * cosLat
+      );
+      
+      // Rotate by longitude (around Y)
+      float cosLon = cos(u_lon);
+      float sinLon = sin(u_lon);
+      dir = vec3(
+        dir.x * cosLon + dir.z * sinLon,
+        dir.y,
+        -dir.x * sinLon + dir.z * cosLon
+      );
+      
+      // Convert to spherical coordinates
+      float theta = atan(dir.x, dir.z);
+      float phi = asin(clamp(dir.y, -1.0, 1.0));
+      
+      // Convert to equirectangular UV
+      vec2 texUV;
+      texUV.x = (theta / PI + 1.0) * 0.5;
+      texUV.y = 0.5 - phi / PI;
+      
+      gl_FragColor = texture2D(u_texture, texUV);
+    }
+  `;
+  
+  useEffect(() => {
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+    
+    // Initialize WebGL
+    const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+    if (!gl) {
+      console.error('WebGL not supported');
+      return;
+    }
+    glRef.current = gl;
+    
+    // Compile shaders
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER)!;
+    gl.shaderSource(vertexShader, vertexShaderSource);
+    gl.compileShader(vertexShader);
+    
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)!;
+    gl.shaderSource(fragmentShader, fragmentShaderSource);
+    gl.compileShader(fragmentShader);
+    
+    // Create program
+    const program = gl.createProgram()!;
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.useProgram(program);
+    programRef.current = program;
+    
+    // Create fullscreen quad
+    const positions = new Float32Array([
+      -1, -1,  1, -1,  -1, 1,
+      -1, 1,   1, -1,   1, 1,
+    ]);
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    
+    // Load texture
+    const texture = gl.createTexture();
+    textureRef.current = texture;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    
+    // Load image
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      
+      // Start render loop
+      const render = () => {
+        // Smooth interpolation
+        rotationRef.current.lon += (targetRotationRef.current.lon - rotationRef.current.lon) * 0.15;
+        rotationRef.current.lat += (targetRotationRef.current.lat - rotationRef.current.lat) * 0.15;
+        rotationRef.current.lat = Math.max(-85, Math.min(85, rotationRef.current.lat));
+        
+        // Update canvas size
+        const rect = container.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio, 2);
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        
+        // Set uniforms
+        gl.uniform1f(gl.getUniformLocation(program, 'u_lon'), rotationRef.current.lon * Math.PI / 180);
+        gl.uniform1f(gl.getUniformLocation(program, 'u_lat'), rotationRef.current.lat * Math.PI / 180);
+        gl.uniform1f(gl.getUniformLocation(program, 'u_fov'), 90);
+        gl.uniform1f(gl.getUniformLocation(program, 'u_aspect'), rect.width / rect.height);
+        
+        // Draw
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+        animationRef.current = requestAnimationFrame(render);
+      };
+      render();
+    };
+    img.src = imageUrl;
+    
+    return () => {
+      cancelAnimationFrame(animationRef.current);
+      gl.deleteProgram(program);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+      gl.deleteTexture(texture);
+    };
+  }, [imageUrl]);
+  
+  // Mouse/touch controls
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const handlePointerDown = (e: PointerEvent) => {
+      isDraggingRef.current = true;
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      canvas.setPointerCapture(e.pointerId);
+    };
+    
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      
+      const deltaX = e.clientX - lastMouseRef.current.x;
+      const deltaY = e.clientY - lastMouseRef.current.y;
+      
+      targetRotationRef.current.lon -= deltaX * 0.3;
+      targetRotationRef.current.lat += deltaY * 0.3;
+      targetRotationRef.current.lat = Math.max(-85, Math.min(85, targetRotationRef.current.lat));
+      
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    
+    const handlePointerUp = (e: PointerEvent) => {
+      isDraggingRef.current = false;
+      canvas.releasePointerCapture(e.pointerId);
+    };
+    
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointercancel', handlePointerUp);
+    
+    return () => {
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      canvas.removeEventListener('pointermove', handlePointerMove);
+      canvas.removeEventListener('pointerup', handlePointerUp);
+      canvas.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, []);
+  
+  return (
+    <div 
+      ref={containerRef} 
+      className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : 'w-full aspect-video rounded-xl overflow-hidden'}`}
+    >
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
+      />
+      <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center pointer-events-none">
+        <div className="bg-black/70 text-white text-xs px-3 py-2 rounded-lg">
+          👆 Drag to look around
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="pointer-events-auto bg-black/70 text-white p-2 rounded-lg hover:bg-black/90"
+          >
+            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <X className="w-5 h-5" />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // ============================================================================
 // QR CODE COMPONENT
@@ -181,6 +433,8 @@ export default function HDRIGenerationPage() {
   const [nearTarget, setNearTarget] = useState<typeof CAPTURE_TARGETS[0] | null>(null);
   const [holdProgress, setHoldProgress] = useState(0);
   const [showDoneScreen, setShowDoneScreen] = useState(false);
+  const [show360Viewer, setShow360Viewer] = useState(false);
+  const [isFullscreen360, setIsFullscreen360] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -581,6 +835,130 @@ export default function HDRIGenerationPage() {
   };
 
   // ==========================================================================
+  // EQUIRECTANGULAR STITCHING - Client-side panorama generation
+  // ==========================================================================
+  
+  /**
+   * Load an image from a File object and return HTMLImageElement
+   */
+  const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      const url = URL.createObjectURL(file);
+      img.src = url;
+    });
+  };
+
+  /**
+   * Draw a single image onto the equirectangular canvas
+   * Uses projection math to place image at correct spherical position
+   */
+  const drawImageOnEquirectangular = (
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    azimuth: number,
+    elevation: number,
+    outWidth: number,
+    outHeight: number
+  ) => {
+    // Camera FOV - phone cameras are typically ~60-70° horizontal
+    // In portrait mode, the vertical FOV is larger
+    const hFov = 60; // horizontal field of view in degrees
+    const vFov = 80; // vertical field of view in degrees
+    
+    // Normalize azimuth to 0-360
+    const normAz = ((azimuth % 360) + 360) % 360;
+    
+    // Calculate center position in equirectangular coordinates
+    // X: 0° azimuth = left edge, 360° = right edge (wrapping)
+    // For front = 0°, we want it at the center, so offset by 180°
+    const centerX = ((normAz + 180) % 360 / 360) * outWidth;
+    
+    // Y: +90° elevation = top, -90° = bottom
+    // In equirectangular: y=0 is top (+90°), y=height is bottom (-90°)
+    const centerY = ((90 - elevation) / 180) * outHeight;
+    
+    // Calculate how much canvas space this image covers
+    const widthSpan = (hFov / 360) * outWidth;
+    const heightSpan = (vFov / 180) * outHeight;
+    
+    // Destination rectangle
+    const destX = centerX - widthSpan / 2;
+    const destY = centerY - heightSpan / 2;
+    
+    // Draw with slight transparency for blending overlaps
+    ctx.globalAlpha = 0.95;
+    
+    // Handle wrap-around at horizontal edges
+    if (destX < 0) {
+      // Wraps from left to right
+      ctx.drawImage(img, outWidth + destX, destY, widthSpan, heightSpan);
+      ctx.drawImage(img, destX, destY, widthSpan, heightSpan);
+    } else if (destX + widthSpan > outWidth) {
+      // Wraps from right to left
+      ctx.drawImage(img, destX, destY, widthSpan, heightSpan);
+      ctx.drawImage(img, destX - outWidth, destY, widthSpan, heightSpan);
+    } else {
+      ctx.drawImage(img, destX, destY, widthSpan, heightSpan);
+    }
+    
+    ctx.globalAlpha = 1.0;
+  };
+
+  /**
+   * Generate equirectangular panorama from captured images
+   */
+  const stitchEquirectangular = async (): Promise<string> => {
+    addDebugLog('Starting client-side stitching...');
+    
+    // Output dimensions (2:1 for equirectangular)
+    const outWidth = 4096;
+    const outHeight = 2048;
+    
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = outWidth;
+    canvas.height = outHeight;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Fill with gradient background (sky to ground)
+    const gradient = ctx.createLinearGradient(0, 0, 0, outHeight);
+    gradient.addColorStop(0, '#1a1a2e');    // Dark blue sky at top (zenith)
+    gradient.addColorStop(0.3, '#4a90a4');  // Lighter sky
+    gradient.addColorStop(0.45, '#87CEEB'); // Horizon sky
+    gradient.addColorStop(0.5, '#E8E8E8');  // Horizon
+    gradient.addColorStop(0.55, '#C4B998'); // Light ground
+    gradient.addColorStop(0.7, '#8B7355');  // Medium ground
+    gradient.addColorStop(1, '#3d3d3d');    // Dark at nadir
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, outWidth, outHeight);
+    
+    // Sort images by elevation (draw floor first, then horizon, then ceiling)
+    const sortedImages = [...capturedImages].sort((a, b) => a.elevation - b.elevation);
+    
+    addDebugLog(`Stitching ${sortedImages.length} images...`);
+    
+    // Load and draw each image
+    for (const imgData of sortedImages) {
+      try {
+        const img = await loadImageFromFile(imgData.file);
+        drawImageOnEquirectangular(ctx, img, imgData.azimuth, imgData.elevation, outWidth, outHeight);
+        addDebugLog(`Drew: az${imgData.azimuth} el${imgData.elevation}`);
+      } catch (err) {
+        addDebugLog(`Failed to load image: ${imgData.id}`);
+      }
+    }
+    
+    // Convert to data URL
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    addDebugLog(`Panorama generated: ${(dataUrl.length / 1024).toFixed(0)}KB`);
+    
+    return dataUrl;
+  };
+
+  // ==========================================================================
   // HDRI GENERATION
   // ==========================================================================
   const generateHDRI = async () => {
@@ -593,49 +971,14 @@ export default function HDRIGenerationPage() {
     setError(null);
     
     try {
-      const formData = new FormData();
-      let totalSize = 0;
+      addDebugLog(`Processing ${capturedImages.length} images...`);
       
-      capturedImages.forEach((img) => {
-        formData.append('images', img.file);
-        formData.append('directions', `az${img.azimuth}_el${img.elevation}`);
-        totalSize += img.file.size;
-      });
+      // Do client-side stitching (works better than serverless)
+      const panoramaUrl = await stitchEquirectangular();
       
-      const sizeMsg = `Uploading ${capturedImages.length} images, ${(totalSize / 1024 / 1024).toFixed(2)}MB`;
-      addDebugLog(sizeMsg);
+      addDebugLog('Equirectangular panorama created!');
+      setGeneratedHDRI(panoramaUrl);
       
-      const response = await fetch('/api/admin/hdri/generate', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      addDebugLog(`Response status: ${response.status}`);
-      
-      // Get response as text first to handle non-JSON responses
-      const responseText = await response.text();
-      addDebugLog(`Response length: ${responseText.length} chars`);
-      
-      // Try to parse as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        addDebugLog('JSON parsed successfully');
-      } catch (parseErr) {
-        // If not valid JSON, throw with the raw text
-        const preview = responseText.substring(0, 200);
-        addDebugLog(`JSON parse failed: ${preview}`);
-        throw new Error(`Server error: ${preview}`);
-      }
-      
-      if (!response.ok) {
-        const errMsg = data.error || data.message || 'Failed to generate HDRI';
-        addDebugLog(`API error: ${errMsg}`);
-        throw new Error(errMsg);
-      }
-      
-      addDebugLog('HDRI generated successfully!');
-      setGeneratedHDRI(data.hdriUrl);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Failed to generate HDRI';
       addDebugLog(`ERROR: ${errMsg}`);
@@ -1164,23 +1507,92 @@ export default function HDRIGenerationPage() {
         {/* Generated HDRI */}
         {generatedHDRI && (
           <div className="mt-6 bg-white rounded-2xl border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-6">
-            <h2 className="text-xl font-bold mb-4">✨ Generated HDRI</h2>
-            <div className="aspect-[2/1] bg-gray-100 rounded-xl overflow-hidden mb-4">
-              <img 
-                src={generatedHDRI} 
-                alt="Generated HDRI" 
-                className="w-full h-full object-cover"
-              />
+            <h2 className="text-xl font-bold mb-4">✨ Generated Panorama</h2>
+            
+            {/* View toggle buttons */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setShow360Viewer(false)}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
+                  !show360Viewer 
+                    ? 'bg-black text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <ImageIcon className="w-4 h-4" />
+                Flat View
+              </button>
+              <button
+                onClick={() => setShow360Viewer(true)}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
+                  show360Viewer 
+                    ? 'bg-black text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                360° View
+              </button>
             </div>
-            <a
-              href={generatedHDRI}
-              download="custom-hdri.hdr"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
-            >
-              <Download className="w-5 h-5" />
-              Download HDRI
-            </a>
+            
+            {/* Panorama display */}
+            {show360Viewer ? (
+              <div className="mb-4">
+                <PanoramaViewer 
+                  imageUrl={generatedHDRI} 
+                  onClose={() => setShow360Viewer(false)}
+                />
+                <button
+                  onClick={() => setIsFullscreen360(true)}
+                  className="mt-3 w-full py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-sm flex items-center justify-center gap-2"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                  Open Fullscreen
+                </button>
+              </div>
+            ) : (
+              <div className="aspect-[2/1] bg-gray-100 rounded-xl overflow-hidden mb-4">
+                <img 
+                  src={generatedHDRI} 
+                  alt="Generated Panorama" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            
+            <p className="text-sm text-gray-500 mb-4">
+              Equirectangular panorama (4096×2048) - Use in 3D software or panorama viewers
+            </p>
+            
+            <div className="flex gap-3">
+              <a
+                href={generatedHDRI}
+                download="panorama-360.jpg"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+              >
+                <Download className="w-5 h-5" />
+                Download
+              </a>
+              <button
+                onClick={() => {
+                  setGeneratedHDRI(null);
+                  setShow360Viewer(false);
+                }}
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
           </div>
+        )}
+        
+        {/* Fullscreen 360 Viewer */}
+        {isFullscreen360 && generatedHDRI && (
+          <PanoramaViewer 
+            imageUrl={generatedHDRI} 
+            onClose={() => setIsFullscreen360(false)}
+            isFullscreen={true}
+          />
         )}
         
         {/* Error */}
