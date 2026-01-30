@@ -41,13 +41,15 @@ def stitch_equirectangular_fast(images, azimuths, elevations):
     out_width = 2048  # Reduced for speed
     out_height = 1024
     
-    # Camera FOV (portrait phone)
-    h_fov = 60
-    v_fov = 80
+    # Camera FOV (images are pre-cropped on frontend to remove fisheye)
+    # After 65% center crop, effective FOV is narrower
+    h_fov = 40  # Horizontal FOV after crop
+    v_fov = 55  # Vertical FOV after crop
     h_fov_rad = np.radians(h_fov)
     v_fov_rad = np.radians(v_fov)
     
     print(f"Stitching {len(images)} images to {out_width}x{out_height}", file=sys.stderr)
+    print(f"FOV: {h_fov}° x {v_fov}° (pre-cropped images)", file=sys.stderr)
     
     # Create output coordinate grids
     px = np.arange(out_width)
@@ -204,6 +206,8 @@ def stitch():
                 images.append(img)
                 azimuths.append(float(img_data.get('azimuth', 0)))
                 elevations.append(float(img_data.get('elevation', 0)))
+                
+                print(f"  Image {i+1}: {img.shape[1]}x{img.shape[0]}, az={azimuths[-1]:.0f}°, el={elevations[-1]:.0f}°", file=sys.stderr)
         
         if len(images) < 2:
             return jsonify({'success': False, 'error': 'Could not decode images'})

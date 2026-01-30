@@ -319,7 +319,16 @@ interface DeviceOrientation {
 // CAPTURE TARGETS - 18 positions for full 360° coverage
 // ============================================================================
 const CAPTURE_TARGETS = [
-  // Middle row - 8 positions at horizon (elevation 0°)
+  // BOTTOM ROW - 8 positions looking down (elevation -45°)
+  { azimuth: 0, elevation: -45, name: 'Down-Front' },
+  { azimuth: 45, elevation: -45, name: 'Down-FR' },
+  { azimuth: 90, elevation: -45, name: 'Down-Right' },
+  { azimuth: 135, elevation: -45, name: 'Down-BR' },
+  { azimuth: 180, elevation: -45, name: 'Down-Back' },
+  { azimuth: 225, elevation: -45, name: 'Down-BL' },
+  { azimuth: 270, elevation: -45, name: 'Down-Left' },
+  { azimuth: 315, elevation: -45, name: 'Down-FL' },
+  // MIDDLE ROW - 8 positions at horizon (elevation 0°)
   { azimuth: 0, elevation: 0, name: 'Front' },
   { azimuth: 45, elevation: 0, name: 'Front-Right' },
   { azimuth: 90, elevation: 0, name: 'Right' },
@@ -328,23 +337,22 @@ const CAPTURE_TARGETS = [
   { azimuth: 225, elevation: 0, name: 'Back-Left' },
   { azimuth: 270, elevation: 0, name: 'Left' },
   { azimuth: 315, elevation: 0, name: 'Front-Left' },
-  // Top row - 4 positions looking up (elevation 45°)
+  // TOP ROW - 8 positions looking up (elevation 45°)
   { azimuth: 0, elevation: 45, name: 'Up-Front' },
+  { azimuth: 45, elevation: 45, name: 'Up-FR' },
   { azimuth: 90, elevation: 45, name: 'Up-Right' },
+  { azimuth: 135, elevation: 45, name: 'Up-BR' },
   { azimuth: 180, elevation: 45, name: 'Up-Back' },
+  { azimuth: 225, elevation: 45, name: 'Up-BL' },
   { azimuth: 270, elevation: 45, name: 'Up-Left' },
-  // Bottom row - 4 positions looking down (elevation -45°)
-  { azimuth: 0, elevation: -45, name: 'Down-Front' },
-  { azimuth: 90, elevation: -45, name: 'Down-Right' },
-  { azimuth: 180, elevation: -45, name: 'Down-Back' },
-  { azimuth: 270, elevation: -45, name: 'Down-Left' },
+  { azimuth: 315, elevation: 45, name: 'Up-FL' },
   // Ceiling and Floor (elevation 80° and -80°)
   { azimuth: 0, elevation: 80, name: 'Ceiling' },
   { azimuth: 0, elevation: -80, name: 'Floor' },
 ];
 
-const CAPTURE_THRESHOLD = 25; // degrees
-const CAPTURE_HOLD_TIME = 800; // ms
+const CAPTURE_THRESHOLD = 20; // degrees - tighter for more images
+const CAPTURE_HOLD_TIME = 600; // ms - faster capture
 
 // ============================================================================
 // THREE.JS DEVICE ORIENTATION CONTROLS - EXACT IMPLEMENTATION
@@ -748,20 +756,37 @@ export default function HDRIGenerationPage() {
         return;
       }
       
-      // Resize to max 1920px to reduce file size for upload
-      const maxSize = 1920;
-      let width = video.videoWidth;
-      let height = video.videoHeight;
+      // CROP CENTER 65% to remove fisheye distortion (orthographic-like view)
+      const cropRatio = 0.65;
+      const srcWidth = video.videoWidth;
+      const srcHeight = video.videoHeight;
       
-      if (width > maxSize || height > maxSize) {
-        const scale = maxSize / Math.max(width, height);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
+      // Calculate crop region (center portion)
+      const cropWidth = Math.round(srcWidth * cropRatio);
+      const cropHeight = Math.round(srcHeight * cropRatio);
+      const cropX = Math.round((srcWidth - cropWidth) / 2);
+      const cropY = Math.round((srcHeight - cropHeight) / 2);
+      
+      // Output size (max 1080px for upload efficiency)
+      const maxSize = 1080;
+      let outWidth = cropWidth;
+      let outHeight = cropHeight;
+      
+      if (outWidth > maxSize || outHeight > maxSize) {
+        const scale = maxSize / Math.max(outWidth, outHeight);
+        outWidth = Math.round(outWidth * scale);
+        outHeight = Math.round(outHeight * scale);
       }
       
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(video, 0, 0, width, height);
+      canvas.width = outWidth;
+      canvas.height = outHeight;
+      
+      // Draw cropped center region
+      ctx.drawImage(
+        video,
+        cropX, cropY, cropWidth, cropHeight,  // Source (center crop)
+        0, 0, outWidth, outHeight              // Destination
+      );
       
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85);
@@ -773,7 +798,7 @@ export default function HDRIGenerationPage() {
         return;
       }
       
-      addDebugLog(`Captured: ${name}, ${(blob.size / 1024).toFixed(0)}KB, ${width}x${height}`);
+      addDebugLog(`Captured: ${name}, ${(blob.size / 1024).toFixed(0)}KB, ${outWidth}x${outHeight} (cropped)`);
       
       const file = new File([blob], `hdri-${name}-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const previewUrl = URL.createObjectURL(blob);
