@@ -145,8 +145,8 @@ def stitch_equirectangular(images, azimuths, elevations):
         
         # Convert angle to image UV coordinates (0 to 1)
         # Center of image = angle 0, edges = ±FOV/2
-        # The image was flipped horizontally on upload, so we need to flip U
-        u = 0.5 - (angle_h / h_fov_half) * 0.5  # Flipped: 0.5 - instead of 0.5 +
+        # No flip needed for test images
+        u = 0.5 + (angle_h / h_fov_half) * 0.5
         v = 0.5 - (angle_v / v_fov_half) * 0.5  # Top of image = positive angle
         
         # Convert UV to pixel coordinates
