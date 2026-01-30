@@ -852,108 +852,296 @@ export default function HDRIGenerationPage() {
   };
 
   /**
-   * Draw a single image onto the equirectangular canvas
-   * Uses projection math to place image at correct spherical position
+   * PROFESSIONAL PANORAMA STITCHING
+   * Uses inverse mapping with feathered blending for seamless results
    */
-  const drawImageOnEquirectangular = (
-    ctx: CanvasRenderingContext2D,
-    img: HTMLImageElement,
-    azimuth: number,
-    elevation: number,
-    outWidth: number,
-    outHeight: number
-  ) => {
-    // Camera FOV - phone cameras are typically ~60-70° horizontal
-    // In portrait mode, the vertical FOV is larger
-    const hFov = 60; // horizontal field of view in degrees
-    const vFov = 80; // vertical field of view in degrees
+  
+  // Convert spherical coordinates to 3D direction
+  const sphericalToCartesian = (azimuth: number, elevation: number): [number, number, number] => {
+    const azRad = (azimuth * Math.PI) / 180;
+    const elRad = (elevation * Math.PI) / 180;
+    const x = Math.cos(elRad) * Math.sin(azRad);
+    const y = Math.sin(elRad);
+    const z = Math.cos(elRad) * Math.cos(azRad);
+    return [x, y, z];
+  };
+  
+  // Get angle between two 3D directions
+  const angleBetween = (dir1: [number, number, number], dir2: [number, number, number]): number => {
+    const dot = dir1[0] * dir2[0] + dir1[1] * dir2[1] + dir1[2] * dir2[2];
+    return Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+  };
+  
+  // Project a 3D direction onto an image plane
+  const projectToImage = (
+    dir: [number, number, number],
+    imgAzimuth: number,
+    imgElevation: number,
+    hFov: number,
+    vFov: number
+  ): [number, number] | null => {
+    // Camera basis vectors
+    const azRad = (imgAzimuth * Math.PI) / 180;
+    const elRad = (imgElevation * Math.PI) / 180;
     
-    // Normalize azimuth to 0-360
-    const normAz = ((azimuth % 360) + 360) % 360;
+    // Camera forward direction
+    const fwd: [number, number, number] = [
+      Math.cos(elRad) * Math.sin(azRad),
+      Math.sin(elRad),
+      Math.cos(elRad) * Math.cos(azRad)
+    ];
     
-    // Calculate center position in equirectangular coordinates
-    // X: 0° azimuth = left edge, 360° = right edge (wrapping)
-    // For front = 0°, we want it at the center, so offset by 180°
-    const centerX = ((normAz + 180) % 360 / 360) * outWidth;
+    // Camera right direction (in world space)
+    const right: [number, number, number] = [
+      Math.cos(azRad),
+      0,
+      -Math.sin(azRad)
+    ];
     
-    // Y: +90° elevation = top, -90° = bottom
-    // In equirectangular: y=0 is top (+90°), y=height is bottom (-90°)
-    const centerY = ((90 - elevation) / 180) * outHeight;
+    // Camera up direction
+    const up: [number, number, number] = [
+      -Math.sin(elRad) * Math.sin(azRad),
+      Math.cos(elRad),
+      -Math.sin(elRad) * Math.cos(azRad)
+    ];
     
-    // Calculate how much canvas space this image covers
-    const widthSpan = (hFov / 360) * outWidth;
-    const heightSpan = (vFov / 180) * outHeight;
+    // Project direction onto camera plane
+    const dotFwd = dir[0] * fwd[0] + dir[1] * fwd[1] + dir[2] * fwd[2];
     
-    // Destination rectangle
-    const destX = centerX - widthSpan / 2;
-    const destY = centerY - heightSpan / 2;
+    // Behind camera
+    if (dotFwd <= 0.01) return null;
     
-    // Draw with slight transparency for blending overlaps
-    ctx.globalAlpha = 0.95;
+    const dotRight = dir[0] * right[0] + dir[1] * right[1] + dir[2] * right[2];
+    const dotUp = dir[0] * up[0] + dir[1] * up[1] + dir[2] * up[2];
     
-    // Handle wrap-around at horizontal edges
-    if (destX < 0) {
-      // Wraps from left to right
-      ctx.drawImage(img, outWidth + destX, destY, widthSpan, heightSpan);
-      ctx.drawImage(img, destX, destY, widthSpan, heightSpan);
-    } else if (destX + widthSpan > outWidth) {
-      // Wraps from right to left
-      ctx.drawImage(img, destX, destY, widthSpan, heightSpan);
-      ctx.drawImage(img, destX - outWidth, destY, widthSpan, heightSpan);
-    } else {
-      ctx.drawImage(img, destX, destY, widthSpan, heightSpan);
-    }
+    // Project to image plane
+    const x = dotRight / dotFwd;
+    const y = dotUp / dotFwd;
     
-    ctx.globalAlpha = 1.0;
+    // Convert to normalized image coordinates
+    const hFovRad = (hFov * Math.PI) / 180;
+    const vFovRad = (vFov * Math.PI) / 180;
+    
+    const u = x / Math.tan(hFovRad / 2) * 0.5 + 0.5;
+    const v = 0.5 - y / Math.tan(vFovRad / 2) * 0.5;
+    
+    // Check if within image bounds
+    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+    
+    return [u, v];
+  };
+  
+  // Calculate feathering weight (smooth falloff at edges)
+  const getFeatherWeight = (u: number, v: number, featherSize: number = 0.15): number => {
+    // Distance from edge (0 at edge, 1 at center)
+    const edgeDistU = Math.min(u, 1 - u) / featherSize;
+    const edgeDistV = Math.min(v, 1 - v) / featherSize;
+    const edgeDist = Math.min(edgeDistU, edgeDistV);
+    
+    // Smooth step function for nice falloff
+    const t = Math.max(0, Math.min(1, edgeDist));
+    return t * t * (3 - 2 * t); // Smoothstep
   };
 
   /**
-   * Generate equirectangular panorama from captured images
+   * Generate seamless equirectangular panorama using inverse mapping
+   * This samples each output pixel from the best matching input images
    */
   const stitchEquirectangular = async (): Promise<string> => {
-    addDebugLog('Starting client-side stitching...');
+    addDebugLog('Starting professional stitching...');
     
     // Output dimensions (2:1 for equirectangular)
     const outWidth = 4096;
     const outHeight = 2048;
     
-    // Create canvas
+    // Create output canvas
     const canvas = document.createElement('canvas');
     canvas.width = outWidth;
     canvas.height = outHeight;
     const ctx = canvas.getContext('2d')!;
     
-    // Fill with gradient background (sky to ground)
-    const gradient = ctx.createLinearGradient(0, 0, 0, outHeight);
-    gradient.addColorStop(0, '#1a1a2e');    // Dark blue sky at top (zenith)
-    gradient.addColorStop(0.3, '#4a90a4');  // Lighter sky
-    gradient.addColorStop(0.45, '#87CEEB'); // Horizon sky
-    gradient.addColorStop(0.5, '#E8E8E8');  // Horizon
-    gradient.addColorStop(0.55, '#C4B998'); // Light ground
-    gradient.addColorStop(0.7, '#8B7355');  // Medium ground
-    gradient.addColorStop(1, '#3d3d3d');    // Dark at nadir
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, outWidth, outHeight);
+    // Camera FOV assumptions (portrait mode phone camera)
+    const hFov = 55; // horizontal field of view
+    const vFov = 75; // vertical field of view
     
-    // Sort images by elevation (draw floor first, then horizon, then ceiling)
-    const sortedImages = [...capturedImages].sort((a, b) => a.elevation - b.elevation);
+    // Load all images and create ImageData
+    addDebugLog(`Loading ${capturedImages.length} images...`);
     
-    addDebugLog(`Stitching ${sortedImages.length} images...`);
+    interface LoadedImage {
+      img: HTMLImageElement;
+      canvas: HTMLCanvasElement;
+      data: ImageData;
+      azimuth: number;
+      elevation: number;
+      direction: [number, number, number];
+    }
     
-    // Load and draw each image
-    for (const imgData of sortedImages) {
+    const loadedImages: LoadedImage[] = [];
+    
+    for (const imgData of capturedImages) {
       try {
         const img = await loadImageFromFile(imgData.file);
-        drawImageOnEquirectangular(ctx, img, imgData.azimuth, imgData.elevation, outWidth, outHeight);
-        addDebugLog(`Drew: az${imgData.azimuth} el${imgData.elevation}`);
+        
+        // Create canvas for this image
+        const imgCanvas = document.createElement('canvas');
+        imgCanvas.width = img.width;
+        imgCanvas.height = img.height;
+        const imgCtx = imgCanvas.getContext('2d')!;
+        imgCtx.drawImage(img, 0, 0);
+        
+        loadedImages.push({
+          img,
+          canvas: imgCanvas,
+          data: imgCtx.getImageData(0, 0, img.width, img.height),
+          azimuth: imgData.azimuth,
+          elevation: imgData.elevation,
+          direction: sphericalToCartesian(imgData.azimuth, imgData.elevation)
+        });
       } catch (err) {
-        addDebugLog(`Failed to load image: ${imgData.id}`);
+        addDebugLog(`Failed to load: az${imgData.azimuth} el${imgData.elevation}`);
       }
     }
     
+    addDebugLog(`Loaded ${loadedImages.length} images, stitching...`);
+    
+    // Create output image data
+    const outputData = ctx.createImageData(outWidth, outHeight);
+    const pixels = outputData.data;
+    
+    // Fill with sky/ground gradient as base
+    for (let y = 0; y < outHeight; y++) {
+      const t = y / outHeight;
+      let r, g, b;
+      
+      if (t < 0.3) {
+        // Top (zenith) - dark blue
+        r = 26; g = 26; b = 46;
+      } else if (t < 0.45) {
+        // Upper sky - gradient
+        const lt = (t - 0.3) / 0.15;
+        r = Math.round(26 + (135 - 26) * lt);
+        g = Math.round(26 + (206 - 26) * lt);
+        b = Math.round(46 + (235 - 46) * lt);
+      } else if (t < 0.55) {
+        // Horizon
+        const lt = (t - 0.45) / 0.1;
+        r = Math.round(135 + (200 - 135) * lt);
+        g = Math.round(206 + (200 - 206) * lt);
+        b = Math.round(235 + (180 - 235) * lt);
+      } else if (t < 0.7) {
+        // Ground
+        const lt = (t - 0.55) / 0.15;
+        r = Math.round(200 + (139 - 200) * lt);
+        g = Math.round(200 + (115 - 200) * lt);
+        b = Math.round(180 + (85 - 180) * lt);
+      } else {
+        // Nadir - dark
+        const lt = (t - 0.7) / 0.3;
+        r = Math.round(139 + (50 - 139) * lt);
+        g = Math.round(115 + (50 - 115) * lt);
+        b = Math.round(85 + (50 - 85) * lt);
+      }
+      
+      for (let x = 0; x < outWidth; x++) {
+        const idx = (y * outWidth + x) * 4;
+        pixels[idx] = r;
+        pixels[idx + 1] = g;
+        pixels[idx + 2] = b;
+        pixels[idx + 3] = 255;
+      }
+    }
+    
+    // For each pixel in output, find matching input pixels and blend
+    const processRow = (y: number) => {
+      // Convert y to elevation (-90 to 90 degrees, top to bottom)
+      const elevation = 90 - (y / outHeight) * 180;
+      
+      for (let x = 0; x < outWidth; x++) {
+        // Convert x to azimuth (0 to 360 degrees)
+        const azimuth = (x / outWidth) * 360;
+        
+        // Get 3D direction for this pixel
+        const dir = sphericalToCartesian(azimuth, elevation);
+        
+        // Accumulate weighted color from all contributing images
+        let totalR = 0, totalG = 0, totalB = 0;
+        let totalWeight = 0;
+        
+        for (const loaded of loadedImages) {
+          // Check if this direction is visible in this image
+          const uv = projectToImage(dir, loaded.azimuth, loaded.elevation, hFov, vFov);
+          
+          if (uv) {
+            const [u, v] = uv;
+            
+            // Calculate blending weight (feathered edges)
+            const weight = getFeatherWeight(u, v, 0.2);
+            
+            if (weight > 0.001) {
+              // Sample pixel from source image (bilinear interpolation)
+              const srcX = u * (loaded.data.width - 1);
+              const srcY = v * (loaded.data.height - 1);
+              
+              const x0 = Math.floor(srcX);
+              const y0 = Math.floor(srcY);
+              const x1 = Math.min(x0 + 1, loaded.data.width - 1);
+              const y1 = Math.min(y0 + 1, loaded.data.height - 1);
+              
+              const fx = srcX - x0;
+              const fy = srcY - y0;
+              
+              const idx00 = (y0 * loaded.data.width + x0) * 4;
+              const idx10 = (y0 * loaded.data.width + x1) * 4;
+              const idx01 = (y1 * loaded.data.width + x0) * 4;
+              const idx11 = (y1 * loaded.data.width + x1) * 4;
+              
+              const srcData = loaded.data.data;
+              
+              // Bilinear interpolation
+              const r = (srcData[idx00] * (1-fx) + srcData[idx10] * fx) * (1-fy) +
+                       (srcData[idx01] * (1-fx) + srcData[idx11] * fx) * fy;
+              const g = (srcData[idx00+1] * (1-fx) + srcData[idx10+1] * fx) * (1-fy) +
+                       (srcData[idx01+1] * (1-fx) + srcData[idx11+1] * fx) * fy;
+              const b = (srcData[idx00+2] * (1-fx) + srcData[idx10+2] * fx) * (1-fy) +
+                       (srcData[idx01+2] * (1-fx) + srcData[idx11+2] * fx) * fy;
+              
+              totalR += r * weight;
+              totalG += g * weight;
+              totalB += b * weight;
+              totalWeight += weight;
+            }
+          }
+        }
+        
+        // Write blended pixel
+        if (totalWeight > 0.01) {
+          const idx = (y * outWidth + x) * 4;
+          pixels[idx] = Math.round(totalR / totalWeight);
+          pixels[idx + 1] = Math.round(totalG / totalWeight);
+          pixels[idx + 2] = Math.round(totalB / totalWeight);
+        }
+      }
+    };
+    
+    // Process in batches to avoid blocking UI
+    const batchSize = 64;
+    for (let y = 0; y < outHeight; y += batchSize) {
+      for (let row = y; row < Math.min(y + batchSize, outHeight); row++) {
+        processRow(row);
+      }
+      // Progress update
+      if (y % 256 === 0) {
+        addDebugLog(`Stitching: ${Math.round(y / outHeight * 100)}%`);
+        await new Promise(r => setTimeout(r, 0)); // Yield to UI
+      }
+    }
+    
+    // Put the image data
+    ctx.putImageData(outputData, 0, 0);
+    
     // Convert to data URL
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    addDebugLog(`Panorama generated: ${(dataUrl.length / 1024).toFixed(0)}KB`);
+    addDebugLog(`Panorama complete: ${(dataUrl.length / 1024).toFixed(0)}KB`);
     
     return dataUrl;
   };
@@ -961,6 +1149,25 @@ export default function HDRIGenerationPage() {
   // ==========================================================================
   // HDRI GENERATION
   // ==========================================================================
+  
+  // External OpenCV API URL (deploy Python service to Railway/Render and set this env var)
+  const OPENCV_API = process.env.NEXT_PUBLIC_OPENCV_API;
+  
+  /**
+   * Convert File to base64 data URL
+   */
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+  
+  /**
+   * Generate HDRI - tries OpenCV API first, falls back to client-side
+   */
   const generateHDRI = async () => {
     if (capturedImages.length < 4) {
       setError('Please capture at least 4 images');
@@ -973,10 +1180,45 @@ export default function HDRIGenerationPage() {
     try {
       addDebugLog(`Processing ${capturedImages.length} images...`);
       
-      // Do client-side stitching (works better than serverless)
+      // Try external OpenCV API if configured
+      if (OPENCV_API) {
+        try {
+          addDebugLog('Using OpenCV API for stitching...');
+          
+          const imagesData = await Promise.all(
+            capturedImages.map(async (img) => ({
+              data: await fileToBase64(img.file),
+              azimuth: img.azimuth,
+              elevation: img.elevation,
+            }))
+          );
+          
+          const response = await fetch(`${OPENCV_API}/stitch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: imagesData }),
+          });
+          
+          const result = await response.json();
+          
+          if (result.success && result.panorama) {
+            addDebugLog(`OpenCV stitching complete! (${result.method})`);
+            setGeneratedHDRI(result.panorama);
+            return;
+          }
+          
+          addDebugLog(`OpenCV API failed: ${result.error}`);
+        } catch (apiErr) {
+          addDebugLog(`OpenCV API error: ${apiErr}`);
+        }
+        
+        addDebugLog('Falling back to client-side stitching...');
+      }
+      
+      // Client-side stitching (works on Vercel)
       const panoramaUrl = await stitchEquirectangular();
       
-      addDebugLog('Equirectangular panorama created!');
+      addDebugLog('Panorama stitching complete!');
       setGeneratedHDRI(panoramaUrl);
       
     } catch (err) {
