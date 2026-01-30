@@ -108,16 +108,49 @@ export default function HDRIGenerationPage() {
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdStartRef = useRef<number | null>(null);
   
+  // Calculate the direction the camera is pointing based on device orientation
+  // Device Orientation API:
+  // - alpha (0-360): compass direction (0 = North, 90 = East, 180 = South, 270 = West)
+  // - beta (-180 to 180): front-to-back tilt (90 = vertical, 0 = flat face up, 180 = flat face down)
+  // - gamma (-90 to 90): left-to-right tilt
+  
   const currentAzimuth = useCallback(() => {
+    // Alpha is compass heading - when you turn RIGHT, alpha INCREASES
+    // We want azimuth to represent where the camera is pointing
+    // Subtract from initial to get relative rotation from start position
     let azimuth = orientation.alpha;
     if (initialAlpha !== null) {
+      // When device rotates RIGHT (clockwise from above), alpha increases
+      // So camera points to a HIGHER azimuth value
       azimuth = (orientation.alpha - initialAlpha + 360) % 360;
     }
     return azimuth;
   }, [orientation.alpha, initialAlpha]);
   
   const currentElevation = useCallback(() => {
-    let elevation = -(orientation.beta - 90);
+    // Beta represents front-to-back tilt:
+    // - beta = 90: phone vertical, camera pointing at horizon (elevation = 0)
+    // - beta = 0: phone flat, camera pointing UP at ceiling (elevation = +90)
+    // - beta = 180/-180: phone flat face down, camera pointing DOWN (elevation = -90)
+    // - beta < 90: phone tilted back, camera pointing UP (elevation > 0)
+    // - beta > 90: phone tilted forward, camera pointing DOWN (elevation < 0)
+    
+    let beta = orientation.beta;
+    let elevation: number;
+    
+    if (beta >= 0 && beta <= 180) {
+      // Normal range: 0 to 180
+      // beta 90 -> elevation 0 (horizon)
+      // beta 0 -> elevation 90 (straight up)
+      // beta 180 -> elevation -90 (straight down)
+      elevation = 90 - beta;
+    } else {
+      // beta is negative (rare on most devices)
+      // beta -90 -> elevation 180 (which we clamp)
+      elevation = 90 - beta;
+    }
+    
+    // Clamp to valid range
     elevation = Math.max(-90, Math.min(90, elevation));
     return elevation;
   }, [orientation.beta]);
@@ -477,44 +510,69 @@ export default function HDRIGenerationPage() {
   };
 
   // Calculate position of target in camera view (returns x, y from -1 to 1, or null if not visible)
+  // x: -1 = left edge, 0 = center, 1 = right edge
+  // y: -1 = top edge, 0 = center, 1 = bottom edge
   const getTargetScreenPosition = (target: typeof CAPTURE_TARGETS[0]) => {
-    const azimuth = currentAzimuth();
-    const elevation = currentElevation();
+    const cameraAzimuth = currentAzimuth();
+    const cameraElevation = currentElevation();
     
-    let azDiff = target.azimuth - azimuth;
+    // Calculate how far the target is from where camera is pointing
+    // Positive azDiff = target is to the RIGHT of camera view
+    // Negative azDiff = target is to the LEFT of camera view
+    let azDiff = target.azimuth - cameraAzimuth;
+    
+    // Handle wraparound (e.g., camera at 350°, target at 10° should be +20° not -340°)
     if (azDiff > 180) azDiff -= 360;
     if (azDiff < -180) azDiff += 360;
-    const elDiff = target.elevation - elevation;
     
-    // Field of view (approximate)
-    const hFov = 70;
-    const vFov = 90;
+    // Positive elDiff = target is ABOVE camera view
+    // Negative elDiff = target is BELOW camera view
+    const elDiff = target.elevation - cameraElevation;
     
-    // Check if in view
-    if (Math.abs(azDiff) > hFov / 2 + 20 || Math.abs(elDiff) > vFov / 2 + 20) {
+    // Approximate camera field of view in degrees
+    const hFov = 60; // Horizontal FOV
+    const vFov = 80; // Vertical FOV
+    
+    // Check if target is within extended view (with margin for partial visibility)
+    const margin = 25;
+    if (Math.abs(azDiff) > hFov / 2 + margin || Math.abs(elDiff) > vFov / 2 + margin) {
       return null;
     }
     
+    // Convert to normalized screen coordinates
+    // Target to the RIGHT (positive azDiff) -> positive x (right side of screen)
     const x = azDiff / (hFov / 2);
+    
+    // Target ABOVE (positive elDiff) -> negative y (top of screen, since CSS y increases downward)
     const y = -elDiff / (vFov / 2);
     
-    return { x, y, distance: Math.sqrt(azDiff * azDiff + elDiff * elDiff) };
+    const distance = Math.sqrt(azDiff * azDiff + elDiff * elDiff);
+    
+    return { x, y, distance };
   };
 
   // Get direction arrow for off-screen target
+  // Returns which way user should turn/tilt to find the target
   const getOffScreenDirection = (target: typeof CAPTURE_TARGETS[0]) => {
-    const azimuth = currentAzimuth();
-    const elevation = currentElevation();
+    const cameraAzimuth = currentAzimuth();
+    const cameraElevation = currentElevation();
     
-    let azDiff = target.azimuth - azimuth;
+    // How far is target from camera direction?
+    let azDiff = target.azimuth - cameraAzimuth;
     if (azDiff > 180) azDiff -= 360;
     if (azDiff < -180) azDiff += 360;
-    const elDiff = target.elevation - elevation;
+    const elDiff = target.elevation - cameraElevation;
     
-    // Determine primary direction
+    // Determine primary direction to turn
+    // If vertical difference is larger, point up/down
+    // If horizontal difference is larger, point left/right
     if (Math.abs(elDiff) > Math.abs(azDiff)) {
+      // Target is above (elDiff > 0) -> tilt UP
+      // Target is below (elDiff < 0) -> tilt DOWN
       return elDiff > 0 ? 'up' : 'down';
     } else {
+      // Target is to the right (azDiff > 0) -> turn RIGHT
+      // Target is to the left (azDiff < 0) -> turn LEFT
       return azDiff > 0 ? 'right' : 'left';
     }
   };
@@ -717,15 +775,47 @@ export default function HDRIGenerationPage() {
         {/* Top HUD */}
         <div className="absolute top-0 left-0 right-0 p-4 z-10">
           <div className="flex items-start justify-between">
-            {/* Compass */}
+            {/* Compass with direction labels */}
             <div className="bg-black/60 backdrop-blur-sm rounded-xl p-3">
               <div className="flex items-center gap-2 text-white">
-                <Compass className="w-5 h-5" />
-                <span className="font-mono text-lg">{Math.round(azimuth)}°</span>
+                <div className="relative w-10 h-10">
+                  {/* Compass circle */}
+                  <div className="absolute inset-0 border-2 border-white/30 rounded-full" />
+                  {/* Direction indicator */}
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ transform: `rotate(${-azimuth}deg)` }}
+                  >
+                    <div className="w-1 h-4 bg-red-500 rounded-full -translate-y-1" />
+                  </div>
+                  {/* N marker */}
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] font-bold text-red-400">N</div>
+                </div>
+                <div>
+                  <div className="font-mono text-lg">{Math.round(azimuth)}°</div>
+                  <div className="text-white/60 text-[10px]">
+                    {azimuth < 22.5 || azimuth >= 337.5 ? 'Front' :
+                     azimuth < 67.5 ? 'Front-R' :
+                     azimuth < 112.5 ? 'Right' :
+                     azimuth < 157.5 ? 'Back-R' :
+                     azimuth < 202.5 ? 'Back' :
+                     azimuth < 247.5 ? 'Back-L' :
+                     azimuth < 292.5 ? 'Left' : 'Front-L'}
+                  </div>
+                </div>
               </div>
-              <div className="text-white/60 text-xs mt-1">
-                Elevation: {Math.round(elevation)}°
+              <div className="text-white/60 text-xs mt-1 flex items-center gap-2">
+                <span>Tilt: {Math.round(elevation)}°</span>
+                <span className="text-[10px]">
+                  {elevation > 30 ? '↑ UP' : elevation < -30 ? '↓ DOWN' : '→ LEVEL'}
+                </span>
               </div>
+              {/* Next target hint */}
+              {nearTarget && (
+                <div className="mt-1 text-yellow-400 text-[10px] font-bold">
+                  → {nearTarget.name}
+                </div>
+              )}
             </div>
             
             {/* Progress counter */}
