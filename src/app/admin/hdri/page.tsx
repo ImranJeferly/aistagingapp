@@ -64,7 +64,7 @@ interface DeviceOrientation {
 }
 
 // ============================================================================
-// CAPTURE TARGETS - 16 positions for full 360° coverage
+// CAPTURE TARGETS - 18 positions for full 360° coverage
 // ============================================================================
 const CAPTURE_TARGETS = [
   // Middle row - 8 positions at horizon (elevation 0°)
@@ -86,6 +86,9 @@ const CAPTURE_TARGETS = [
   { azimuth: 90, elevation: -45, name: 'Down-Right' },
   { azimuth: 180, elevation: -45, name: 'Down-Back' },
   { azimuth: 270, elevation: -45, name: 'Down-Left' },
+  // Ceiling and Floor (elevation 80° and -80°)
+  { azimuth: 0, elevation: 80, name: 'Ceiling' },
+  { azimuth: 0, elevation: -80, name: 'Floor' },
 ];
 
 const CAPTURE_THRESHOLD = 25; // degrees
@@ -626,8 +629,12 @@ export default function HDRIGenerationPage() {
       return null;
     }
     
-    // Screen position: target to the right = positive x, target above = negative y
-    const x = azDiff / (hFov / 2);
+    // Screen position calculation:
+    // NEGATE x because when camera turns RIGHT, objects move LEFT on screen
+    // But we want target positions to show where they ARE, not where they're moving
+    // So if target is to the RIGHT (azDiff > 0), show on RIGHT of screen (x > 0)
+    // The reversal happens because of camera coordinate conventions, so we negate
+    const x = -azDiff / (hFov / 2);
     const y = -elDiff / (vFov / 2);
     
     const distance = Math.sqrt(azDiff * azDiff + elDiff * elDiff);
@@ -646,7 +653,8 @@ export default function HDRIGenerationPage() {
     if (Math.abs(elDiff) > Math.abs(azDiff)) {
       return elDiff > 0 ? 'up' : 'down';
     } else {
-      return azDiff > 0 ? 'right' : 'left';
+      // REVERSED: negative azDiff means target is to the right (due to coordinate system)
+      return azDiff < 0 ? 'right' : 'left';
     }
   };
 
