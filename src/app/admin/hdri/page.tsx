@@ -225,18 +225,19 @@ export default function HDRIGenerationPage() {
   // Convert camera direction to azimuth (0-360) and elevation (-90 to 90)
   const currentAzimuth = useCallback(() => {
     const dir = getCameraDirection();
-    // Azimuth: angle in horizontal plane from forward (+Z in world = 0°)
-    // atan2(x, z) gives angle from +Z toward +X
+    // Azimuth: angle in horizontal plane
+    // Add 180° to fix front/back reversal (camera convention vs world convention)
     let azimuth = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-    azimuth = (azimuth + 360) % 360;
+    azimuth = (azimuth + 180 + 360) % 360; // Add 180° to flip front/back
     return azimuth;
   }, [getCameraDirection]);
 
   const currentElevation = useCallback(() => {
     const dir = getCameraDirection();
     // Elevation: angle from horizontal plane
+    // Negate to fix up/down reversal
     const horizontalDist = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
-    let elevation = Math.atan2(-dir.y, horizontalDist) * (180 / Math.PI);
+    let elevation = Math.atan2(dir.y, horizontalDist) * (180 / Math.PI); // Removed negative to flip up/down
     return Math.max(-90, Math.min(90, elevation));
   }, [getCameraDirection]);
 
@@ -631,11 +632,10 @@ export default function HDRIGenerationPage() {
     
     // Screen position calculation:
     // NEGATE x because when camera turns RIGHT, objects move LEFT on screen
-    // But we want target positions to show where they ARE, not where they're moving
-    // So if target is to the RIGHT (azDiff > 0), show on RIGHT of screen (x > 0)
-    // The reversal happens because of camera coordinate conventions, so we negate
+    // NEGATE y is removed - elDiff > 0 means target is UP, should be at top of screen (negative y)
+    // But since we flipped elevation, we need to also flip y here
     const x = -azDiff / (hFov / 2);
-    const y = -elDiff / (vFov / 2);
+    const y = elDiff / (vFov / 2);  // Positive elDiff (up) = positive y = bottom, but elevation is now correct
     
     const distance = Math.sqrt(azDiff * azDiff + elDiff * elDiff);
     return { x, y, distance };
@@ -651,10 +651,11 @@ export default function HDRIGenerationPage() {
     const elDiff = target.elevation - cameraElevation;
     
     if (Math.abs(elDiff) > Math.abs(azDiff)) {
+      // elDiff > 0 means target is higher elevation (up), need to tilt phone up
       return elDiff > 0 ? 'up' : 'down';
     } else {
-      // REVERSED: negative azDiff means target is to the right (due to coordinate system)
-      return azDiff < 0 ? 'right' : 'left';
+      // azDiff > 0 means target is to the left, need to turn left
+      return azDiff > 0 ? 'left' : 'right';
     }
   };
 
@@ -714,7 +715,7 @@ export default function HDRIGenerationPage() {
                     <img 
                       src={img.previewUrl} 
                       alt="" 
-                      className="w-36 h-28 object-cover rounded-xl border-4 border-green-400 shadow-xl"
+                      className="w-20 h-32 object-cover rounded-xl border-4 border-green-400 shadow-xl"
                     />
                     <div className="absolute -top-3 -right-3 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
                       <Check className="w-5 h-5 text-white" />
@@ -901,7 +902,7 @@ export default function HDRIGenerationPage() {
                   <img 
                     src={img.previewUrl} 
                     alt="" 
-                    className="w-16 h-16 object-cover rounded-lg border-2 border-green-400"
+                    className="w-12 h-20 object-cover rounded-lg border-2 border-green-400"
                   />
                   <button
                     onClick={() => removeImage(img.id)}
