@@ -96,12 +96,10 @@ def stitch_equirectangular_fast(images, azimuths, elevations):
             np.cos(el_rad) * np.cos(az_rad)
         ])
         
-        # Right direction (NEGATED because image was flipped horizontally)
-        # Original right would be [cos(az), 0, -sin(az)]
-        # After horizontal flip, right becomes left, so negate it
-        right = np.array([-np.cos(az_rad), 0, np.sin(az_rad)])
+        # Right direction (original, not negated)
+        right = np.array([np.cos(az_rad), 0, -np.sin(az_rad)])
         
-        # Up direction (unchanged by horizontal flip)
+        # Up direction
         up = np.array([
             -np.sin(el_rad) * np.sin(az_rad),
             np.cos(el_rad),
@@ -122,7 +120,8 @@ def stitch_equirectangular_fast(images, azimuths, elevations):
             proj_y = np.where(valid, dot_up / dot_fwd, 0)
         
         # Convert to normalized image coordinates
-        u = proj_x / np.tan(h_fov_rad / 2) * 0.5 + 0.5
+        # Note: Image is horizontally flipped, so we flip U coordinate (0.5 - instead of 0.5 +)
+        u = 0.5 - proj_x / np.tan(h_fov_rad / 2) * 0.5
         v = 0.5 - proj_y / np.tan(v_fov_rad / 2) * 0.5
         
         # Mask for points within image bounds
