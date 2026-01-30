@@ -427,10 +427,10 @@ export default function HDRIGenerationPage() {
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   
-  // Debug logger that shows on screen
+  // Debug logger that shows on screen - keep all logs (no limit)
   const addDebugLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setDebugLogs(prev => [...prev.slice(-9), `[${timestamp}] ${message}`]);
+    setDebugLogs(prev => [...prev, `[${timestamp}] ${message}`]);
   };
   
   const [orientation, setOrientation] = useState<DeviceOrientation>({ alpha: 0, beta: 0, gamma: 0 });
@@ -1559,9 +1559,9 @@ export default function HDRIGenerationPage() {
           
           {/* Debug logs panel */}
           {showDebug && debugLogs.length > 0 && (
-            <div className="mt-2 p-3 bg-black/90 rounded-xl max-h-48 overflow-y-auto">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-purple-400 text-xs font-bold">Debug Logs</span>
+            <div className="mt-2 p-3 bg-black/90 rounded-xl max-h-64 overflow-y-auto">
+              <div className="flex justify-between items-center mb-2 sticky top-0 bg-black/90 pb-1">
+                <span className="text-purple-400 text-xs font-bold">Debug Logs ({debugLogs.length})</span>
                 <button 
                   onClick={() => setDebugLogs([])}
                   className="text-red-400 text-xs"
@@ -1880,9 +1880,9 @@ export default function HDRIGenerationPage() {
             </button>
             
             {showDebug && debugLogs.length > 0 && (
-              <div className="mt-2 p-4 bg-gray-900 rounded-xl max-h-64 overflow-y-auto">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-purple-400 text-sm font-bold">Debug Logs</span>
+              <div className="mt-2 p-4 bg-gray-900 rounded-xl max-h-96 overflow-y-auto">
+                <div className="flex justify-between items-center mb-3 sticky top-0 bg-gray-900 pb-2">
+                  <span className="text-purple-400 text-sm font-bold">Debug Logs ({debugLogs.length})</span>
                   <button 
                     onClick={() => setDebugLogs([])}
                     className="text-red-400 text-xs px-2 py-1 bg-red-900/30 rounded"
