@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Flask API for Panorama Stitching - OPTIMIZED VERSION
-Uses NumPy vectorization for speed (no timeouts!)
+Flask API for Panorama Stitching - CORRECT MATHEMATICAL APPROACH
+Based on Paul Bourke's equirectangular projection documentation
 """
 
 import cv2
@@ -31,53 +31,65 @@ def encode_image_base64(img: np.ndarray, quality: int = 90) -> str:
     base64_string = base64.b64encode(buffer).decode('utf-8')
     return f"data:image/jpeg;base64,{base64_string}"
 
-def stitch_equirectangular_fast(images, azimuths, elevations):
+def stitch_equirectangular(images, azimuths, elevations):
     """
-    FAST vectorized equirectangular stitching using NumPy
+    Equirectangular stitching using CORRECT spherical math.
+    
+    Coordinate system:
+    - Azimuth: 0° = front (positive Z), 90° = right (positive X), 180° = back, 270° = left
+    - Elevation: 0° = horizon, +90° = up (positive Y), -90° = down
+    
+    Equirectangular mapping:
+    - Horizontal pixel position maps to longitude (azimuth)
+    - Vertical pixel position maps to latitude (elevation)  
+    - x = 0 corresponds to azimuth = -180° (left edge = behind)
+    - x = width/2 corresponds to azimuth = 0° (center = front)
+    - x = width corresponds to azimuth = +180° (right edge = behind)
     """
     start_time = time.time()
     
-    # Output dimensions
-    out_width = 2048  # Reduced for speed
+    # Output dimensions (2:1 aspect ratio for equirectangular)
+    out_width = 2048
     out_height = 1024
     
-    # Camera FOV (images are pre-cropped on frontend to remove fisheye)
-    # After 65% center crop, effective FOV is narrower
-    h_fov = 40  # Horizontal FOV after crop
-    v_fov = 55  # Vertical FOV after crop
-    h_fov_rad = np.radians(h_fov)
-    v_fov_rad = np.radians(v_fov)
+    # Camera FOV (after 65% center crop on frontend)
+    h_fov = 40  # degrees
+    v_fov = 55  # degrees
     
     print(f"Stitching {len(images)} images to {out_width}x{out_height}", file=sys.stderr)
-    print(f"FOV: {h_fov}° x {v_fov}° (pre-cropped images)", file=sys.stderr)
+    print(f"FOV: {h_fov}° x {v_fov}°", file=sys.stderr)
     
-    # Create output coordinate grids
-    px = np.arange(out_width)
-    py = np.arange(out_height)
+    # Create output pixel coordinate grids
+    px = np.arange(out_width, dtype=np.float32)
+    py = np.arange(out_height, dtype=np.float32)
     px_grid, py_grid = np.meshgrid(px, py)
     
-    # Convert to spherical coordinates
-    # Standard equirectangular: center of image = front (azimuth 0°/360°)
-    # Left edge = -180° (or 180°), Right edge = +180°
-    # We'll use 0-360 range but offset so center = 0°
-    out_azimuth = ((px_grid / out_width) * 360.0 + 180.0) % 360.0  # Center = 0°/360°
-    out_elevation = 90.0 - (py_grid / out_height) * 180.0  # Top = +90°, Bottom = -90°
+    # Convert output pixel coordinates to spherical coordinates
+    # Standard equirectangular: longitude spans -180° to +180°, latitude spans +90° to -90°
+    # longitude (azimuth): -180° at x=0, 0° at x=width/2, +180° at x=width
+    longitude = (px_grid / out_width - 0.5) * 360.0  # -180 to +180 degrees
+    latitude = (0.5 - py_grid / out_height) * 180.0   # +90 to -90 degrees
     
     # Convert to radians
-    out_az_rad = np.radians(out_azimuth)
-    out_el_rad = np.radians(out_elevation)
+    lon_rad = np.radians(longitude)
+    lat_rad = np.radians(latitude)
     
-    # Convert to 3D direction vectors (for all output pixels at once)
-    # Y-up coordinate system: X=right, Y=up, Z=forward
-    dir_x = np.cos(out_el_rad) * np.sin(out_az_rad)
-    dir_y = np.sin(out_el_rad)
-    dir_z = np.cos(out_el_rad) * np.cos(out_az_rad)
+    # Convert spherical to Cartesian (unit sphere)
+    # Using standard convention: X=right, Y=up, Z=forward
+    # longitude=0 points to +Z (forward), longitude=90° points to +X (right)
+    out_x = np.cos(lat_rad) * np.sin(lon_rad)  # Right/left
+    out_y = np.sin(lat_rad)                      # Up/down  
+    out_z = np.cos(lat_rad) * np.cos(lon_rad)  # Forward/back
     
-    # Initialize output
+    # Initialize output accumulation buffers
     output = np.zeros((out_height, out_width, 3), dtype=np.float32)
     weights = np.zeros((out_height, out_width), dtype=np.float32)
     
-    # Process each image
+    # FOV half-angles for boundary check
+    h_fov_half = np.radians(h_fov / 2)
+    v_fov_half = np.radians(v_fov / 2)
+    
+    # Process each source image
     for idx, (img, img_az, img_el) in enumerate(zip(images, azimuths, elevations)):
         if img is None:
             continue
@@ -85,81 +97,92 @@ def stitch_equirectangular_fast(images, azimuths, elevations):
         img_h, img_w = img.shape[:2]
         img_float = img.astype(np.float32)
         
-        # Camera basis vectors for image at (azimuth, elevation)
-        az_rad = np.radians(img_az)
-        el_rad = np.radians(img_el)
+        # Image camera direction in spherical coords (converted to radians)
+        cam_az_rad = np.radians(img_az)   # Azimuth of camera
+        cam_el_rad = np.radians(img_el)   # Elevation of camera
         
-        # Forward direction (where camera is pointing)
-        fwd = np.array([
-            np.cos(el_rad) * np.sin(az_rad),
-            np.sin(el_rad),
-            np.cos(el_rad) * np.cos(az_rad)
+        # Camera basis vectors (where camera is pointing)
+        # Forward vector: direction camera is looking
+        cam_fwd = np.array([
+            np.cos(cam_el_rad) * np.sin(cam_az_rad),  # X
+            np.sin(cam_el_rad),                         # Y
+            np.cos(cam_el_rad) * np.cos(cam_az_rad)   # Z
         ])
         
-        # Right direction (original, not negated)
-        right = np.array([np.cos(az_rad), 0, -np.sin(az_rad)])
-        
-        # Up direction
-        up = np.array([
-            -np.sin(el_rad) * np.sin(az_rad),
-            np.cos(el_rad),
-            -np.sin(el_rad) * np.cos(az_rad)
+        # Right vector: perpendicular to forward, in horizontal plane
+        # For azimuth rotation: right = (cos(az), 0, -sin(az))
+        cam_right = np.array([
+            np.cos(cam_az_rad),   # X
+            0,                      # Y
+            -np.sin(cam_az_rad)   # Z
         ])
         
-        # Project all directions onto camera plane (vectorized)
-        dot_fwd = dir_x * fwd[0] + dir_y * fwd[1] + dir_z * fwd[2]
-        dot_right = dir_x * right[0] + dir_y * right[1] + dir_z * right[2]
-        dot_up = dir_x * up[0] + dir_y * up[1] + dir_z * up[2]
+        # Up vector: perpendicular to both forward and right
+        # This tilts with elevation
+        cam_up = np.array([
+            -np.sin(cam_el_rad) * np.sin(cam_az_rad),  # X
+            np.cos(cam_el_rad),                          # Y
+            -np.sin(cam_el_rad) * np.cos(cam_az_rad)   # Z
+        ])
         
-        # Mask for points in front of camera
-        valid = dot_fwd > 0.1
+        # For each output pixel direction, compute projection onto this camera's image plane
+        # Dot products with camera basis (vectorized)
+        dot_fwd = out_x * cam_fwd[0] + out_y * cam_fwd[1] + out_z * cam_fwd[2]
+        dot_right = out_x * cam_right[0] + out_y * cam_right[1] + out_z * cam_right[2]
+        dot_up = out_x * cam_up[0] + out_y * cam_up[1] + out_z * cam_up[2]
         
-        # Perspective projection (only where valid)
+        # Only consider pixels that are in front of the camera
+        in_front = dot_fwd > 0.01
+        
+        # Perspective projection: project 3D point onto image plane
         with np.errstate(divide='ignore', invalid='ignore'):
-            proj_x = np.where(valid, dot_right / dot_fwd, 0)
-            proj_y = np.where(valid, dot_up / dot_fwd, 0)
+            # Angles from camera center
+            angle_h = np.where(in_front, np.arctan2(dot_right, dot_fwd), 999)
+            angle_v = np.where(in_front, np.arctan2(dot_up, dot_fwd), 999)
         
-        # Convert to normalized image coordinates
-        # Note: Image is horizontally flipped, so we flip U coordinate (0.5 - instead of 0.5 +)
-        u = 0.5 - proj_x / np.tan(h_fov_rad / 2) * 0.5
-        v = 0.5 - proj_y / np.tan(v_fov_rad / 2) * 0.5
+        # Check if within camera FOV
+        in_fov = in_front & (np.abs(angle_h) < h_fov_half) & (np.abs(angle_v) < v_fov_half)
         
-        # Mask for points within image bounds
-        in_bounds = valid & (u >= 0) & (u <= 1) & (v >= 0) & (v <= 1)
+        # Convert angle to image UV coordinates (0 to 1)
+        # Center of image = angle 0, edges = ±FOV/2
+        # The image was flipped horizontally on upload, so we need to flip U
+        u = 0.5 - (angle_h / h_fov_half) * 0.5  # Flipped: 0.5 - instead of 0.5 +
+        v = 0.5 - (angle_v / v_fov_half) * 0.5  # Top of image = positive angle
         
-        # Convert to pixel coordinates
+        # Convert UV to pixel coordinates
         src_x = (u * (img_w - 1)).astype(np.float32)
         src_y = (v * (img_h - 1)).astype(np.float32)
         
-        # Create feather weight (distance from edge)
-        edge_dist_u = np.minimum(u, 1 - u) / 0.2  # 20% feather
-        edge_dist_v = np.minimum(v, 1 - v) / 0.2
-        edge_dist = np.minimum(edge_dist_u, edge_dist_v)
-        edge_dist = np.clip(edge_dist, 0, 1)
-        feather_weight = edge_dist * edge_dist * (3 - 2 * edge_dist)  # smoothstep
+        # Feathering weight based on distance from edge
+        edge_u = np.minimum(u, 1 - u)
+        edge_v = np.minimum(v, 1 - v)
+        edge_dist = np.minimum(edge_u, edge_v)
+        # Normalize to 0-1 range over 20% feather zone
+        feather = np.clip(edge_dist / 0.2, 0, 1)
+        # Smoothstep for nicer blending
+        feather = feather * feather * (3 - 2 * feather)
         
-        # Sample image using remap (fast!)
+        # Sample image
         map_x = np.clip(src_x, 0, img_w - 1).astype(np.float32)
         map_y = np.clip(src_y, 0, img_h - 1).astype(np.float32)
-        
         sampled = cv2.remap(img_float, map_x, map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
         
-        # Apply weight only where in bounds
-        w = np.where(in_bounds, feather_weight, 0).astype(np.float32)
+        # Apply weight only where in FOV
+        w = np.where(in_fov, feather, 0).astype(np.float32)
         
-        # Accumulate
+        # Accumulate weighted samples
         for c in range(3):
             output[:, :, c] += sampled[:, :, c] * w
         weights += w
         
-        print(f"  Image {idx+1}/{len(images)}: az={img_az:.0f}°, el={img_el:.0f}°", file=sys.stderr)
+        print(f"  [{idx+1}/{len(images)}] az={img_az:>6.1f}°, el={img_el:>6.1f}° - pixels: {np.sum(in_fov):>7}", file=sys.stderr)
     
-    # Normalize
+    # Normalize by total weight
     mask = weights > 0.001
     for c in range(3):
         output[:, :, c] = np.where(mask, output[:, :, c] / np.maximum(weights, 0.001), 0)
     
-    # Fill gaps with inpainting
+    # Fill any gaps with inpainting
     gap_mask = (~mask).astype(np.uint8) * 255
     gap_percent = 100 * np.sum(~mask) / (out_width * out_height)
     print(f"Gaps: {gap_percent:.1f}%", file=sys.stderr)
@@ -216,8 +239,8 @@ def stitch():
         if len(images) < 2:
             return jsonify({'success': False, 'error': 'Could not decode images'})
         
-        # Stitch
-        result = stitch_equirectangular_fast(images, azimuths, elevations)
+        # Stitch using corrected algorithm
+        result = stitch_equirectangular(images, azimuths, elevations)
         
         # Upscale result for quality
         result = cv2.resize(result, (4096, 2048), interpolation=cv2.INTER_CUBIC)
@@ -227,7 +250,7 @@ def stitch():
         return jsonify({
             'success': True,
             'panorama': panorama,
-            'method': 'equirectangular-fast',
+            'method': 'equirectangular-corrected',
             'imageCount': len(images)
         })
         
