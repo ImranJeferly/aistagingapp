@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { notFound, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Users, BarChart2, Settings, ArrowLeft, Star, Globe, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BarChart2, Settings, ArrowLeft, Star, Globe, MessageSquare, Sun } from 'lucide-react';
 
 const ADMIN_EMAIL = 'imranjeferly@gmail.com';
 
@@ -12,7 +12,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, isLoading } = useAuth();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor;
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const isSmallScreen = window.innerWidth < 768;
+      setIsMobile(isMobileDevice || isSmallScreen);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!isLoading) {
@@ -30,6 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Reviews', href: '/admin/reviews', icon: Star },
     { name: 'Reports', href: '/admin/reports', icon: MessageSquare },
     { name: 'Explore', href: '/admin/explore', icon: Globe },
+    { name: 'HDRI Generator', href: '/admin/hdri', icon: Sun, beta: true },
     // { name: 'Statistics', href: '/admin/stats', icon: BarChart2 },
     // { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
@@ -44,6 +60,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!isAuthorized) {
     notFound();
+  }
+
+  // On mobile and HDRI page, render fullscreen without sidebar
+  const isHDRIPage = pathname?.startsWith('/admin/hdri');
+  if (isMobile && isHDRIPage) {
+    return (
+      <div className="min-h-screen bg-[#FFFCF5]">
+        {children}
+      </div>
+    );
   }
 
   return (
@@ -74,7 +100,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   }`}
                 >
                   <Icon size={20} />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {'beta' in item && item.beta && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      isActive ? 'bg-yellow-400 text-black' : 'bg-yellow-300 text-black'
+                    }`}>
+                      BETA
+                    </span>
+                  )}
                 </Link>
               );
             })}
