@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, Upload, RotateCcw, Check, X, Download, Smartphone, Sparkles, Eye, AlertCircle, RefreshCw, Play, Pause, Lock, Unlock } from 'lucide-react';
+import { Camera, Upload, RotateCcw, Check, X, Download, Smartphone, Sparkles, AlertCircle, RefreshCw, Lock, Unlock, Compass, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // QR Code component
@@ -54,20 +54,19 @@ interface CapturedImage {
   id: string;
   file: File;
   previewUrl: string;
-  azimuth: number; // Horizontal angle (0-360)
-  elevation: number; // Vertical angle (-90 to 90)
+  azimuth: number;
+  elevation: number;
   timestamp: number;
 }
 
 interface DeviceOrientation {
-  alpha: number; // Z-axis rotation (0-360)
-  beta: number;  // X-axis rotation (-180 to 180)
-  gamma: number; // Y-axis rotation (-90 to 90)
+  alpha: number;
+  beta: number;
+  gamma: number;
 }
 
-// Target positions for HDRI capture (azimuth, elevation)
+// Target positions for HDRI capture
 const CAPTURE_TARGETS = [
-  // Horizontal ring (eye level)
   { azimuth: 0, elevation: 0, name: 'Front' },
   { azimuth: 45, elevation: 0, name: 'Front-Right' },
   { azimuth: 90, elevation: 0, name: 'Right' },
@@ -76,13 +75,12 @@ const CAPTURE_TARGETS = [
   { azimuth: 225, elevation: 0, name: 'Back-Left' },
   { azimuth: 270, elevation: 0, name: 'Left' },
   { azimuth: 315, elevation: 0, name: 'Front-Left' },
-  // Up/Down
   { azimuth: 0, elevation: 75, name: 'Ceiling' },
   { azimuth: 0, elevation: -75, name: 'Floor' },
 ];
 
-const CAPTURE_THRESHOLD = 15; // Degrees threshold for auto-capture
-const CAPTURE_HOLD_TIME = 500; // ms to hold position before capture
+const CAPTURE_THRESHOLD = 20;
+const CAPTURE_HOLD_TIME = 600;
 
 export default function HDRIGenerationPage() {
   const [isMobile, setIsMobile] = useState(false);
@@ -95,13 +93,13 @@ export default function HDRIGenerationPage() {
   const [error, setError] = useState<string | null>(null);
   const [pageUrl, setPageUrl] = useState('');
   
-  // Device orientation
   const [orientation, setOrientation] = useState<DeviceOrientation>({ alpha: 0, beta: 0, gamma: 0 });
   const [hasOrientationPermission, setHasOrientationPermission] = useState(false);
   const [initialAlpha, setInitialAlpha] = useState<number | null>(null);
   const [autoCapture, setAutoCapture] = useState(true);
   const [nearTarget, setNearTarget] = useState<typeof CAPTURE_TARGETS[0] | null>(null);
   const [holdProgress, setHoldProgress] = useState(0);
+  const [showDoneScreen, setShowDoneScreen] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,7 +108,6 @@ export default function HDRIGenerationPage() {
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdStartRef = useRef<number | null>(null);
   
-  // Calculate current azimuth and elevation from device orientation
   const currentAzimuth = useCallback(() => {
     let azimuth = orientation.alpha;
     if (initialAlpha !== null) {
@@ -120,15 +117,11 @@ export default function HDRIGenerationPage() {
   }, [orientation.alpha, initialAlpha]);
   
   const currentElevation = useCallback(() => {
-    // Beta is the front-to-back tilt (-180 to 180)
-    // When phone is vertical (portrait), beta is ~90
-    // We want elevation 0 when phone is vertical
     let elevation = -(orientation.beta - 90);
     elevation = Math.max(-90, Math.min(90, elevation));
     return elevation;
   }, [orientation.beta]);
 
-  // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor;
@@ -144,7 +137,6 @@ export default function HDRIGenerationPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Request device orientation permission (iOS requires explicit permission)
   const requestOrientationPermission = async () => {
     if (typeof DeviceOrientationEvent !== 'undefined' && 
         typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -159,14 +151,12 @@ export default function HDRIGenerationPage() {
         return false;
       }
     } else {
-      // Non-iOS devices don't need permission
       setHasOrientationPermission(true);
       return true;
     }
     return false;
   };
 
-  // Device orientation handler
   useEffect(() => {
     if (!showCamera || !hasOrientationPermission) return;
     
@@ -178,7 +168,6 @@ export default function HDRIGenerationPage() {
           gamma: event.gamma,
         });
         
-        // Set initial alpha on first reading
         if (initialAlpha === null) {
           setInitialAlpha(event.alpha);
         }
@@ -203,12 +192,10 @@ export default function HDRIGenerationPage() {
     const azimuth = currentAzimuth();
     const elevation = currentElevation();
     
-    // Find nearest uncaptured target
     let nearest: typeof CAPTURE_TARGETS[0] | null = null;
     let minDistance = Infinity;
     
     for (const target of CAPTURE_TARGETS) {
-      // Check if already captured
       const alreadyCaptured = capturedImages.some(img => {
         const azDiff = Math.abs(img.azimuth - target.azimuth);
         const elDiff = Math.abs(img.elevation - target.elevation);
@@ -217,7 +204,6 @@ export default function HDRIGenerationPage() {
       
       if (alreadyCaptured) continue;
       
-      // Calculate distance
       let azDiff = Math.abs(azimuth - target.azimuth);
       if (azDiff > 180) azDiff = 360 - azDiff;
       const elDiff = Math.abs(elevation - target.elevation);
@@ -231,7 +217,6 @@ export default function HDRIGenerationPage() {
     
     setNearTarget(nearest);
     
-    // Check if we're close enough to capture
     if (nearest && minDistance < CAPTURE_THRESHOLD) {
       if (!holdStartRef.current) {
         holdStartRef.current = Date.now();
@@ -264,7 +249,6 @@ export default function HDRIGenerationPage() {
     };
   }, [showCamera, autoCapture, isCameraReady, isCapturing, orientation, capturedImages, currentAzimuth, currentElevation]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -276,15 +260,13 @@ export default function HDRIGenerationPage() {
     };
   }, []);
 
-  // Start camera
   const startCamera = async () => {
     try {
       setError(null);
       setShowCamera(true);
+      setShowDoneScreen(false);
       
-      // Request orientation permission first
       await requestOrientationPermission();
-      
       await new Promise(resolve => setTimeout(resolve, 100));
       
       let stream: MediaStream | null = null;
@@ -330,7 +312,6 @@ export default function HDRIGenerationPage() {
     }
   };
 
-  // Stop camera
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -342,7 +323,6 @@ export default function HDRIGenerationPage() {
     setHoldProgress(0);
   };
 
-  // Capture image
   const captureImage = async (azimuth: number, elevation: number, name: string) => {
     if (!videoRef.current || !canvasRef.current || isCapturing) return;
     
@@ -385,9 +365,15 @@ export default function HDRIGenerationPage() {
         timestamp: Date.now(),
       };
       
-      setCapturedImages(prev => [...prev, newImage]);
+      setCapturedImages(prev => {
+        const updated = [...prev, newImage];
+        // Check if all targets captured
+        if (updated.length >= CAPTURE_TARGETS.length) {
+          setTimeout(() => setShowDoneScreen(true), 500);
+        }
+        return updated;
+      });
       
-      // Play capture sound/haptic feedback
       if (navigator.vibrate) {
         navigator.vibrate(100);
       }
@@ -399,7 +385,6 @@ export default function HDRIGenerationPage() {
     }
   };
 
-  // Manual capture
   const manualCapture = () => {
     const azimuth = currentAzimuth();
     const elevation = currentElevation();
@@ -407,12 +392,10 @@ export default function HDRIGenerationPage() {
     captureImage(azimuth, elevation, nearest.name);
   };
 
-  // Reset calibration
   const resetCalibration = () => {
     setInitialAlpha(orientation.alpha);
   };
 
-  // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -433,7 +416,6 @@ export default function HDRIGenerationPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Remove image
   const removeImage = (id: string) => {
     setCapturedImages(prev => {
       const img = prev.find(i => i.id === id);
@@ -442,15 +424,14 @@ export default function HDRIGenerationPage() {
     });
   };
 
-  // Reset all
   const resetCaptures = () => {
     capturedImages.forEach(img => URL.revokeObjectURL(img.previewUrl));
     setCapturedImages([]);
     setGeneratedHDRI(null);
     setError(null);
+    setShowDoneScreen(false);
   };
 
-  // Generate HDRI
   const generateHDRI = async () => {
     if (capturedImages.length < 4) {
       setError('Please capture at least 4 images');
@@ -487,7 +468,6 @@ export default function HDRIGenerationPage() {
     }
   };
 
-  // Get captured image for target
   const getImageForTarget = (target: typeof CAPTURE_TARGETS[0]) => {
     return capturedImages.find(img => {
       const azDiff = Math.abs(img.azimuth - target.azimuth);
@@ -496,140 +476,8 @@ export default function HDRIGenerationPage() {
     });
   };
 
-  // 360 Preview Component
-  const PanoramaPreview = () => {
-    const azimuth = currentAzimuth();
-    const elevation = currentElevation();
-    
-    return (
-      <div className="relative w-full h-32 bg-gray-900 rounded-xl overflow-hidden border-2 border-black">
-        {/* 360 strip showing captured images */}
-        <div 
-          className="absolute inset-0 flex transition-transform duration-100"
-          style={{ 
-            transform: `translateX(${-azimuth / 360 * 100 + 50}%)`,
-            width: '200%'
-          }}
-        >
-          {/* Render captured images at their positions */}
-          {capturedImages.filter(img => Math.abs(img.elevation) < 45).map(img => (
-            <div
-              key={img.id}
-              className="absolute h-full"
-              style={{
-                left: `${(img.azimuth / 360) * 100}%`,
-                width: '15%',
-                transform: 'translateX(-50%)'
-              }}
-            >
-              <img 
-                src={img.previewUrl} 
-                alt="" 
-                className="w-full h-full object-cover opacity-80"
-              />
-            </div>
-          ))}
-          
-          {/* Target indicators */}
-          {CAPTURE_TARGETS.filter(t => Math.abs(t.elevation) < 45).map(target => {
-            const hasImage = getImageForTarget(target);
-            return (
-              <div
-                key={target.name}
-                className="absolute top-1/2 -translate-y-1/2"
-                style={{ left: `${(target.azimuth / 360) * 100}%` }}
-              >
-                <div className={`w-3 h-3 rounded-full border-2 ${
-                  hasImage ? 'bg-green-500 border-green-300' : 'bg-transparent border-white/50'
-                }`} />
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Center indicator (current view) */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-yellow-400 -translate-x-1/2" />
-        <div className="absolute left-1/2 top-1 -translate-x-1/2 px-2 py-0.5 bg-yellow-400 text-black text-[10px] font-bold rounded">
-          {Math.round(azimuth)}°
-        </div>
-        
-        {/* Elevation indicator */}
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center">
-          <div className="text-[10px] text-white/70">↑</div>
-          <div className="w-1 h-12 bg-white/20 rounded relative">
-            <div 
-              className="absolute w-3 h-1 bg-yellow-400 rounded -left-1"
-              style={{ top: `${50 - elevation / 90 * 50}%` }}
-            />
-          </div>
-          <div className="text-[10px] text-white/70">↓</div>
-        </div>
-      </div>
-    );
-  };
-
-  // Capture Reticle Component
-  const CaptureReticle = () => {
-    const isNearTarget = nearTarget && holdProgress > 0;
-    
-    return (
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-        {/* Outer ring */}
-        <div className="relative">
-          {/* Progress ring */}
-          <svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="rgba(255,255,255,0.3)"
-              strokeWidth="4"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke={isNearTarget ? "#22c55e" : "#facc15"}
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeDasharray={`${holdProgress * 2.83} 283`}
-              className="transition-all duration-100"
-            />
-          </svg>
-          
-          {/* Center crosshair */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative w-8 h-8">
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/70" />
-              <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/70" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`w-2 h-2 rounded-full ${isNearTarget ? 'bg-green-400' : 'bg-white/50'}`} />
-              </div>
-            </div>
-          </div>
-          
-          {/* Target name */}
-          {nearTarget && (
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
-              <span className="px-2 py-1 bg-black/70 text-white text-xs font-bold rounded">
-                {nearTarget.name}
-              </span>
-            </div>
-          )}
-        </div>
-        
-        {/* Direction arrow to nearest target */}
-        {nearTarget && !isNearTarget && (
-          <DirectionArrow target={nearTarget} />
-        )}
-      </div>
-    );
-  };
-
-  // Direction arrow pointing to target
-  const DirectionArrow = ({ target }: { target: typeof CAPTURE_TARGETS[0] }) => {
+  // Calculate position of target in camera view (returns x, y from -1 to 1, or null if not visible)
+  const getTargetScreenPosition = (target: typeof CAPTURE_TARGETS[0]) => {
     const azimuth = currentAzimuth();
     const elevation = currentElevation();
     
@@ -638,104 +486,298 @@ export default function HDRIGenerationPage() {
     if (azDiff < -180) azDiff += 360;
     const elDiff = target.elevation - elevation;
     
-    const angle = Math.atan2(elDiff, azDiff) * (180 / Math.PI);
+    // Field of view (approximate)
+    const hFov = 70;
+    const vFov = 90;
     
-    return (
-      <div 
-        className="absolute w-full h-full flex items-center justify-center"
-        style={{ transform: `rotate(${-angle}deg)` }}
-      >
-        <div className="absolute right-8 w-6 h-6 border-t-4 border-r-4 border-yellow-400 rotate-45" />
-      </div>
-    );
+    // Check if in view
+    if (Math.abs(azDiff) > hFov / 2 + 20 || Math.abs(elDiff) > vFov / 2 + 20) {
+      return null;
+    }
+    
+    const x = azDiff / (hFov / 2);
+    const y = -elDiff / (vFov / 2);
+    
+    return { x, y, distance: Math.sqrt(azDiff * azDiff + elDiff * elDiff) };
   };
 
-  // Target Grid showing what's captured
-  const TargetGrid = () => (
-    <div className="grid grid-cols-5 gap-1">
-      {CAPTURE_TARGETS.map(target => {
-        const image = getImageForTarget(target);
-        const isNear = nearTarget?.name === target.name;
-        
-        return (
-          <div
-            key={target.name}
-            className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${
-              image ? 'border-green-500' : isNear ? 'border-yellow-400' : 'border-gray-300'
-            }`}
-          >
-            {image ? (
-              <img src={image.previewUrl} alt={target.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                <span className="text-[8px] text-gray-400 font-bold">{target.name.slice(0, 3).toUpperCase()}</span>
-              </div>
-            )}
-            {image && (
-              <button
-                onClick={() => removeImage(image.id)}
-                className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center"
-              >
-                <X className="w-2 h-2 text-white" />
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+  // Get direction arrow for off-screen target
+  const getOffScreenDirection = (target: typeof CAPTURE_TARGETS[0]) => {
+    const azimuth = currentAzimuth();
+    const elevation = currentElevation();
+    
+    let azDiff = target.azimuth - azimuth;
+    if (azDiff > 180) azDiff -= 360;
+    if (azDiff < -180) azDiff += 360;
+    const elDiff = target.elevation - elevation;
+    
+    // Determine primary direction
+    if (Math.abs(elDiff) > Math.abs(azDiff)) {
+      return elDiff > 0 ? 'up' : 'down';
+    } else {
+      return azDiff > 0 ? 'right' : 'left';
+    }
+  };
 
-  // Mobile Camera View
-  if (isMobile && showCamera) {
+  // Mobile Camera View - Full 3D Experience
+  if (showCamera) {
+    const azimuth = currentAzimuth();
+    const elevation = currentElevation();
+    
     return (
-      <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Camera feed */}
-        <div className="flex-1 relative">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <canvas ref={canvasRef} className="hidden" />
+      <div className="fixed inset-0 bg-black z-50">
+        {/* Camera feed - Full screen */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <canvas ref={canvasRef} className="hidden" />
+        
+        {/* Loading overlay */}
+        {!isCameraReady && (
+          <div className="absolute inset-0 bg-black flex flex-col items-center justify-center text-white z-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mb-4" />
+            <p className="text-sm">Initializing camera...</p>
+          </div>
+        )}
+        
+        {/* 3D Overlay - Captured images and targets in camera view */}
+        {isCameraReady && (
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Render captured images at their 3D positions */}
+            {capturedImages.map(img => {
+              const pos = getTargetScreenPosition({ azimuth: img.azimuth, elevation: img.elevation, name: '' });
+              if (!pos) return null;
+              
+              const screenX = 50 + pos.x * 40;
+              const screenY = 50 + pos.y * 40;
+              const scale = Math.max(0.3, 1 - pos.distance / 100);
+              const opacity = Math.max(0.4, 1 - pos.distance / 60);
+              
+              return (
+                <div
+                  key={img.id}
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
+                  style={{
+                    left: `${screenX}%`,
+                    top: `${screenY}%`,
+                    transform: `translate(-50%, -50%) scale(${scale})`,
+                    opacity,
+                    zIndex: Math.round(100 - pos.distance),
+                  }}
+                >
+                  <div className="relative">
+                    <img 
+                      src={img.previewUrl} 
+                      alt="" 
+                      className="w-24 h-16 sm:w-32 sm:h-20 object-cover rounded-lg border-2 border-green-400 shadow-lg"
+                    />
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {/* Render target indicators for uncaptured positions */}
+            {CAPTURE_TARGETS.map(target => {
+              const hasImage = getImageForTarget(target);
+              if (hasImage) return null;
+              
+              const pos = getTargetScreenPosition(target);
+              const isCurrentTarget = nearTarget?.name === target.name;
+              
+              if (!pos) {
+                // Target is off-screen, show direction indicator
+                const direction = getOffScreenDirection(target);
+                if (!isCurrentTarget) return null;
+                
+                return (
+                  <div
+                    key={target.name}
+                    className={`absolute ${
+                      direction === 'up' ? 'top-16 left-1/2 -translate-x-1/2' :
+                      direction === 'down' ? 'bottom-32 left-1/2 -translate-x-1/2' :
+                      direction === 'left' ? 'left-4 top-1/2 -translate-y-1/2' :
+                      'right-4 top-1/2 -translate-y-1/2'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-1 animate-pulse">
+                      {direction === 'up' && <ChevronUp className="w-10 h-10 text-yellow-400" />}
+                      {direction === 'down' && <ChevronDown className="w-10 h-10 text-yellow-400" />}
+                      {direction === 'left' && <ChevronLeft className="w-10 h-10 text-yellow-400" />}
+                      {direction === 'right' && <ChevronRight className="w-10 h-10 text-yellow-400" />}
+                      <span className="text-yellow-400 text-xs font-bold bg-black/50 px-2 py-0.5 rounded">
+                        {target.name}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+              
+              const screenX = 50 + pos.x * 40;
+              const screenY = 50 + pos.y * 40;
+              const size = isCurrentTarget ? 80 : 50;
+              
+              return (
+                <div
+                  key={target.name}
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150"
+                  style={{
+                    left: `${screenX}%`,
+                    top: `${screenY}%`,
+                    zIndex: isCurrentTarget ? 200 : 50,
+                  }}
+                >
+                  {/* Target circle */}
+                  <div className="relative flex items-center justify-center">
+                    <svg 
+                      width={size} 
+                      height={size} 
+                      viewBox="0 0 100 100" 
+                      className="-rotate-90"
+                    >
+                      {/* Background ring */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke={isCurrentTarget ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)"}
+                        strokeWidth={isCurrentTarget ? "4" : "2"}
+                      />
+                      {/* Progress ring (only for current target) */}
+                      {isCurrentTarget && holdProgress > 0 && (
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="none"
+                          stroke="#22c55e"
+                          strokeWidth="6"
+                          strokeLinecap="round"
+                          strokeDasharray={`${holdProgress * 2.83} 283`}
+                        />
+                      )}
+                    </svg>
+                    
+                    {/* Crosshair */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="relative" style={{ width: size * 0.4, height: size * 0.4 }}>
+                        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/60" />
+                        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/60" />
+                      </div>
+                    </div>
+                    
+                    {/* Target name */}
+                    <div 
+                      className="absolute whitespace-nowrap"
+                      style={{ top: size / 2 + 8 }}
+                    >
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                        isCurrentTarget 
+                          ? 'bg-yellow-400 text-black' 
+                          : 'bg-black/50 text-white/70'
+                      }`}>
+                        {target.name}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {/* Center reticle */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <div className="w-6 h-6 relative">
+                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/50" />
+                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/50" />
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Flash effect */}
+        <AnimatePresence>
+          {isCapturing && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-white z-30"
+            />
+          )}
+        </AnimatePresence>
+        
+        {/* Top HUD */}
+        <div className="absolute top-0 left-0 right-0 p-4 z-10">
+          <div className="flex items-start justify-between">
+            {/* Compass */}
+            <div className="bg-black/60 backdrop-blur-sm rounded-xl p-3">
+              <div className="flex items-center gap-2 text-white">
+                <Compass className="w-5 h-5" />
+                <span className="font-mono text-lg">{Math.round(azimuth)}°</span>
+              </div>
+              <div className="text-white/60 text-xs mt-1">
+                Elevation: {Math.round(elevation)}°
+              </div>
+            </div>
+            
+            {/* Progress counter */}
+            <div className="bg-black/60 backdrop-blur-sm rounded-xl px-4 py-3">
+              <div className="text-white font-bold text-center">
+                {capturedImages.length}/{CAPTURE_TARGETS.length}
+              </div>
+              <div className="text-white/60 text-xs">captured</div>
+            </div>
+          </div>
           
-          {/* Loading overlay */}
-          {!isCameraReady && (
-            <div className="absolute inset-0 bg-black flex flex-col items-center justify-center text-white">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mb-4" />
-              <p className="text-sm">Initializing camera...</p>
+          {/* Error display */}
+          {error && (
+            <div className="mt-2 p-2 bg-red-500/80 rounded-lg">
+              <p className="text-white text-xs">{error}</p>
             </div>
           )}
-          
-          {/* Capture reticle */}
-          {isCameraReady && <CaptureReticle />}
-          
-          {/* Capturing flash effect */}
-          <AnimatePresence>
-            {isCapturing && (
-              <motion.div
-                initial={{ opacity: 1 }}
-                animate={{ opacity: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="absolute inset-0 bg-white"
-              />
-            )}
-          </AnimatePresence>
         </div>
         
-        {/* Bottom panel */}
-        <div className="bg-gray-900 p-4 space-y-3 safe-area-bottom">
-          {/* Panorama preview */}
-          <PanoramaPreview />
-          
-          {/* Controls */}
-          <div className="flex items-center justify-between gap-4">
+        {/* Thumbnail strip at bottom showing all captures */}
+        {capturedImages.length > 0 && (
+          <div className="absolute bottom-36 left-0 right-0 z-10">
+            <div className="flex gap-2 px-4 overflow-x-auto pb-2 scrollbar-hide">
+              {capturedImages.map(img => (
+                <div 
+                  key={img.id} 
+                  className="relative flex-shrink-0 group"
+                >
+                  <img 
+                    src={img.previewUrl} 
+                    alt="" 
+                    className="w-12 h-12 object-cover rounded-lg border-2 border-green-400"
+                  />
+                  <button
+                    onClick={() => removeImage(img.id)}
+                    className="pointer-events-auto absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Bottom controls */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pb-8 z-10">
+          <div className="flex items-center justify-between max-w-md mx-auto">
             {/* Close button */}
             <button
               onClick={stopCamera}
-              className="p-3 bg-red-500 rounded-full"
+              className="p-3 bg-white/20 backdrop-blur-sm rounded-full pointer-events-auto"
             >
               <X className="w-6 h-6 text-white" />
             </button>
@@ -744,36 +786,87 @@ export default function HDRIGenerationPage() {
             <button
               onClick={manualCapture}
               disabled={isCapturing || !isCameraReady}
-              className="p-5 bg-white rounded-full border-4 border-gray-400 disabled:opacity-50"
+              className="p-2 bg-white rounded-full border-4 border-white/50 disabled:opacity-50 pointer-events-auto"
             >
-              <div className="w-10 h-10 bg-red-500 rounded-full" />
+              <div className="w-14 h-14 bg-red-500 rounded-full flex items-center justify-center">
+                <Camera className="w-6 h-6 text-white" />
+              </div>
             </button>
             
             {/* Auto-capture toggle */}
             <button
               onClick={() => setAutoCapture(!autoCapture)}
-              className={`p-3 rounded-full ${autoCapture ? 'bg-green-500' : 'bg-gray-600'}`}
+              className={`p-3 rounded-full pointer-events-auto ${autoCapture ? 'bg-green-500' : 'bg-white/20 backdrop-blur-sm'}`}
             >
               {autoCapture ? <Unlock className="w-6 h-6 text-white" /> : <Lock className="w-6 h-6 text-white" />}
             </button>
           </div>
           
-          {/* Info bar */}
-          <div className="flex items-center justify-between text-white text-xs">
-            <span>{capturedImages.length} / {CAPTURE_TARGETS.length} captured</span>
-            <button onClick={resetCalibration} className="underline">Reset North</button>
-            <span className={autoCapture ? 'text-green-400' : 'text-gray-400'}>
-              {autoCapture ? 'Auto-capture ON' : 'Manual mode'}
-            </span>
+          {/* Status text */}
+          <div className="flex items-center justify-center gap-4 mt-3 text-white/70 text-xs">
+            <button onClick={resetCalibration} className="underline pointer-events-auto">Reset North</button>
+            <span>•</span>
+            <span>{autoCapture ? 'Auto-capture ON' : 'Manual mode'}</span>
           </div>
-          
-          {/* Error display */}
-          {error && (
-            <div className="p-2 bg-red-500/20 border border-red-500 rounded-lg">
-              <p className="text-red-400 text-xs">{error}</p>
-            </div>
-          )}
         </div>
+        
+        {/* Done screen overlay */}
+        <AnimatePresence>
+          {showDoneScreen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/90 z-40 flex flex-col items-center justify-center p-6"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', delay: 0.2 }}
+                className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mb-6"
+              >
+                <Check className="w-10 h-10 text-white" />
+              </motion.div>
+              
+              <h2 className="text-white text-2xl font-bold mb-2">All Captured!</h2>
+              <p className="text-white/70 text-center mb-8">
+                You've captured all {CAPTURE_TARGETS.length} positions
+              </p>
+              
+              {/* Preview grid */}
+              <div className="grid grid-cols-5 gap-2 mb-8 max-w-sm">
+                {capturedImages.slice(0, 10).map(img => (
+                  <img 
+                    key={img.id}
+                    src={img.previewUrl} 
+                    alt="" 
+                    className="w-full aspect-square object-cover rounded-lg border-2 border-green-400"
+                  />
+                ))}
+              </div>
+              
+              <div className="flex gap-4 w-full max-w-sm">
+                <button
+                  onClick={() => setShowDoneScreen(false)}
+                  className="flex-1 py-3 bg-white/20 text-white font-bold rounded-xl"
+                >
+                  Continue
+                </button>
+                <button
+                  onClick={() => {
+                    stopCamera();
+                    generateHDRI();
+                  }}
+                  disabled={isGenerating}
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl flex items-center justify-center gap-2"
+                >
+                  {isGenerating ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                  Generate
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -799,111 +892,77 @@ export default function HDRIGenerationPage() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main area */}
           <div className="lg:col-span-2 space-y-4">
-            {showCamera ? (
-              <div className="bg-black rounded-xl overflow-hidden border-3 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                <div className="relative aspect-video">
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                  <canvas ref={canvasRef} className="hidden" />
-                  
-                  {!isCameraReady && (
-                    <div className="absolute inset-0 bg-black flex items-center justify-center text-white">
-                      <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent" />
-                    </div>
-                  )}
-                  
-                  {isCameraReady && <CaptureReticle />}
-                </div>
+            <div className="bg-white border-3 border-black rounded-xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+              <h3 className="font-bold text-lg mb-4">Capture Images</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={startCamera}
+                  className="flex flex-col items-center gap-3 p-6 bg-gray-50 border-3 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
+                >
+                  <Camera className="w-10 h-10" />
+                  <span className="font-bold">Use Webcam</span>
+                </button>
                 
-                <div className="p-4 bg-gray-900 space-y-4">
-                  <PanoramaPreview />
-                  
-                  <div className="flex items-center justify-center gap-4">
-                    <button onClick={stopCamera} className="px-4 py-2 bg-gray-700 text-white rounded-lg font-bold">
-                      Close Camera
-                    </button>
-                    <button
-                      onClick={manualCapture}
-                      disabled={isCapturing || !isCameraReady}
-                      className="px-6 py-3 bg-red-500 text-white rounded-full font-bold disabled:opacity-50"
-                    >
-                      Capture
-                    </button>
-                    <button
-                      onClick={() => setAutoCapture(!autoCapture)}
-                      className={`px-4 py-2 rounded-lg font-bold ${autoCapture ? 'bg-green-500 text-white' : 'bg-gray-700 text-white'}`}
-                    >
-                      {autoCapture ? 'Auto ON' : 'Auto OFF'}
-                    </button>
-                  </div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-3 p-6 bg-gray-50 border-3 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
+                >
+                  <Upload className="w-10 h-10" />
+                  <span className="font-bold">Upload Images</span>
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
+              </div>
+            </div>
+
+            {/* Captured images grid */}
+            {capturedImages.length > 0 && (
+              <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold">Captured ({capturedImages.length}/{CAPTURE_TARGETS.length})</h3>
+                  <button onClick={resetCaptures} className="text-sm text-red-600 font-bold flex items-center gap-1">
+                    <RotateCcw className="w-4 h-4" /> Reset
+                  </button>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {capturedImages.map(img => (
+                    <div key={img.id} className="relative aspect-square group">
+                      <img src={img.previewUrl} alt="" className="w-full h-full object-cover rounded-lg border-2 border-green-500" />
+                      <button
+                        onClick={() => removeImage(img.id)}
+                        className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="bg-white border-3 border-black rounded-xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                  <h3 className="font-bold text-lg mb-4">Capture Images</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      onClick={startCamera}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 border-3 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
-                    >
-                      <Camera className="w-10 h-10" />
-                      <span className="font-bold">Use Webcam</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 border-3 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
-                    >
-                      <Upload className="w-10 h-10" />
-                      <span className="font-bold">Upload Images</span>
-                    </button>
-                    <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
-                  </div>
-                </div>
+            )}
 
-                {/* Captured images */}
-                <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold">Targets ({capturedImages.length}/{CAPTURE_TARGETS.length})</h3>
-                    {capturedImages.length > 0 && (
-                      <button onClick={resetCaptures} className="text-sm text-red-600 font-bold flex items-center gap-1">
-                        <RotateCcw className="w-4 h-4" /> Reset
-                      </button>
-                    )}
-                  </div>
-                  <TargetGrid />
-                </div>
+            {capturedImages.length >= 4 && (
+              <button
+                onClick={generateHDRI}
+                disabled={isGenerating}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl border-3 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isGenerating ? <><RefreshCw className="w-5 h-5 animate-spin" /> Generating...</> : <><Sparkles className="w-5 h-5" /> Generate HDRI</>}
+              </button>
+            )}
 
-                {/* Generate button */}
-                {capturedImages.length >= 4 && (
-                  <button
-                    onClick={generateHDRI}
-                    disabled={isGenerating}
-                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl border-3 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isGenerating ? <><RefreshCw className="w-5 h-5 animate-spin" /> Generating...</> : <><Sparkles className="w-5 h-5" /> Generate HDRI</>}
-                  </button>
-                )}
-
-                {/* Generated HDRI */}
-                {generatedHDRI && (
-                  <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <h3 className="font-bold mb-3 flex items-center gap-2">
-                      <Check className="w-5 h-5 text-green-500" /> HDRI Generated!
-                    </h3>
-                    <img src={generatedHDRI} alt="HDRI" className="w-full aspect-[2/1] object-cover rounded-lg border-2 border-black mb-3" />
-                    <a href={generatedHDRI} download="room-hdri.hdr" className="block w-full py-3 bg-black text-white font-bold rounded-lg text-center">
-                      <Download className="w-5 h-5 inline mr-2" /> Download HDRI
-                    </a>
-                  </div>
-                )}
-              </>
+            {generatedHDRI && (
+              <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <h3 className="font-bold mb-3 flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" /> HDRI Generated!
+                </h3>
+                <img src={generatedHDRI} alt="HDRI" className="w-full aspect-[2/1] object-cover rounded-lg border-2 border-black mb-3" />
+                <a href={generatedHDRI} download="room-hdri.hdr" className="block w-full py-3 bg-black text-white font-bold rounded-lg text-center">
+                  <Download className="w-5 h-5 inline mr-2" /> Download HDRI
+                </a>
+              </div>
             )}
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-4">
             <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <div className="flex items-center gap-2 mb-3">
@@ -919,10 +978,10 @@ export default function HDRIGenerationPage() {
                 <AlertCircle className="w-4 h-4" /> How it works
               </h3>
               <ul className="text-sm text-yellow-800 space-y-1">
-                <li>• Point your device at each target</li>
-                <li>• Hold steady - auto-captures when aligned</li>
-                <li>• Yellow ring shows progress</li>
-                <li>• Green = captured</li>
+                <li>• Open camera and look around</li>
+                <li>• Target circles appear in 3D space</li>
+                <li>• Point at target and hold steady</li>
+                <li>• Captured images appear in view</li>
                 <li>• Minimum 4 images needed</li>
               </ul>
             </div>
@@ -952,17 +1011,15 @@ export default function HDRIGenerationPage() {
           </div>
         )}
 
-        {/* Start capture button */}
         <button
           onClick={startCamera}
           className="w-full py-6 bg-black text-white font-bold rounded-xl border-3 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center gap-2"
         >
           <Camera className="w-12 h-12" />
           <span className="text-lg">Start 360° Capture</span>
-          <span className="text-xs opacity-70">Uses gyroscope for guided capture</span>
+          <span className="text-xs opacity-70">Targets appear in camera view</span>
         </button>
 
-        {/* Upload option */}
         <button
           onClick={() => fileInputRef.current?.click()}
           className="w-full py-4 bg-white font-bold rounded-xl border-3 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-2"
@@ -972,18 +1029,22 @@ export default function HDRIGenerationPage() {
         </button>
         <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
 
-        {/* Target grid */}
-        <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold">Capture Progress</h3>
-            {capturedImages.length > 0 && (
+        {capturedImages.length > 0 && (
+          <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold">Captured Images</h3>
               <button onClick={resetCaptures} className="text-sm text-red-600 font-bold">Reset</button>
-            )}
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {capturedImages.map(img => (
+                <div key={img.id} className="relative aspect-square">
+                  <img src={img.previewUrl} alt="" className="w-full h-full object-cover rounded-lg border-2 border-green-500" />
+                </div>
+              ))}
+            </div>
           </div>
-          <TargetGrid />
-        </div>
+        )}
 
-        {/* Generate button */}
         {capturedImages.length >= 4 && (
           <button
             onClick={generateHDRI}
@@ -994,7 +1055,6 @@ export default function HDRIGenerationPage() {
           </button>
         )}
 
-        {/* Generated HDRI */}
         {generatedHDRI && (
           <div className="bg-white border-3 border-black rounded-xl p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <h3 className="font-bold mb-3 flex items-center gap-2">
@@ -1007,15 +1067,14 @@ export default function HDRIGenerationPage() {
           </div>
         )}
 
-        {/* Instructions */}
         <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4">
           <h3 className="font-bold text-yellow-800 mb-2">How to capture</h3>
           <ul className="text-sm text-yellow-800 space-y-1">
             <li>1. Tap "Start 360° Capture"</li>
-            <li>2. Point device at targets (shown in circle)</li>
-            <li>3. Hold steady - auto-captures when aligned</li>
-            <li>4. Rotate to capture all angles</li>
-            <li>5. Generate your HDRI!</li>
+            <li>2. Target circles appear in camera view</li>
+            <li>3. Point your device at each target</li>
+            <li>4. Hold steady - captures automatically</li>
+            <li>5. Captured images appear in 3D space</li>
           </ul>
         </div>
       </div>
