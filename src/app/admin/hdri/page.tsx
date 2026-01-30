@@ -66,7 +66,9 @@ interface DeviceOrientation {
 }
 
 // Target positions for HDRI capture
+// 16 total: 8 middle (horizon), 4 top angle, 4 bottom angle
 const CAPTURE_TARGETS = [
+  // Middle row - 8 positions at horizon level (elevation 0)
   { azimuth: 0, elevation: 0, name: 'Front' },
   { azimuth: 45, elevation: 0, name: 'Front-Right' },
   { azimuth: 90, elevation: 0, name: 'Right' },
@@ -75,12 +77,21 @@ const CAPTURE_TARGETS = [
   { azimuth: 225, elevation: 0, name: 'Back-Left' },
   { azimuth: 270, elevation: 0, name: 'Left' },
   { azimuth: 315, elevation: 0, name: 'Front-Left' },
-  { azimuth: 0, elevation: 75, name: 'Ceiling' },
-  { azimuth: 0, elevation: -75, name: 'Floor' },
+  // Top angle row - 4 positions looking up (elevation 45)
+  { azimuth: 0, elevation: 45, name: 'Up-Front' },
+  { azimuth: 90, elevation: 45, name: 'Up-Right' },
+  { azimuth: 180, elevation: 45, name: 'Up-Back' },
+  { azimuth: 270, elevation: 45, name: 'Up-Left' },
+  // Bottom angle row - 4 positions looking down (elevation -45)
+  { azimuth: 0, elevation: -45, name: 'Down-Front' },
+  { azimuth: 90, elevation: -45, name: 'Down-Right' },
+  { azimuth: 180, elevation: -45, name: 'Down-Back' },
+  { azimuth: 270, elevation: -45, name: 'Down-Left' },
 ];
 
-const CAPTURE_THRESHOLD = 20;
-const CAPTURE_HOLD_TIME = 600;
+// Less sensitive - larger threshold and longer hold time
+const CAPTURE_THRESHOLD = 25;
+const CAPTURE_HOLD_TIME = 800;
 
 export default function HDRIGenerationPage() {
   const [isMobile, setIsMobile] = useState(false);
@@ -115,58 +126,85 @@ export default function HDRIGenerationPage() {
   // https://w3c.github.io/deviceorientation/
   //
   // The Device Orientation API uses intrinsic Tait-Bryan angles Z-X'-Y'':
-  // 1. alpha (0-360): Rotation around Z axis (compass direction)
-  //    - 0 = North, 90 = East, 180 = South, 270 = West
-  //    - When you rotate device RIGHT (clockwise from above), alpha INCREASES
+  // Rotation order: First rotate by alpha around Z, then beta around X', then gamma around Y''
   //
-  // 2. beta (-180 to 180): Rotation around X axis (front-back tilt)
-  //    - 0 = device flat, screen up
-  //    - 90 = device vertical, screen facing user
-  //    - 180/-180 = device flat, screen down
-  //
-  // 3. gamma (-90 to 90): Rotation around Y axis (left-right tilt)
-  //    - 0 = no tilt
-  //    - 90 = tilted right
-  //    - -90 = tilted left
-  //
-  // Our coordinate system for HDRI capture:
-  // - Azimuth: 0 = initial forward direction, increases clockwise (to the right)
-  // - Elevation: 0 = horizon, +90 = straight up (ceiling), -90 = straight down (floor)
+  // We use the rotation matrix approach from the W3C spec (Appendix A.2) to get the
+  // camera look direction, then convert to azimuth/elevation.
   // ==========================================================================
   
-  const currentAzimuth = useCallback(() => {
-    // When device rotates RIGHT (clockwise from above), alpha INCREASES
-    // Our azimuth should also INCREASE when we turn RIGHT
-    // So azimuth = alpha - initialAlpha (relative to starting direction)
-    let azimuth = orientation.alpha;
+  // Calculate camera look direction using W3C rotation matrix
+  // Returns the direction vector the camera is pointing in world coordinates
+  const getCameraDirection = useCallback(() => {
+    const degToRad = Math.PI / 180;
+    
+    // Get angles in radians
+    // Apply initial alpha offset
+    let alpha = orientation.alpha;
     if (initialAlpha !== null) {
-      azimuth = (orientation.alpha - initialAlpha + 360) % 360;
+      alpha = (orientation.alpha - initialAlpha + 360) % 360;
     }
+    const a = alpha * degToRad;  // Z rotation (yaw/heading)
+    const b = orientation.beta * degToRad;  // X rotation (pitch)
+    const g = orientation.gamma * degToRad;  // Y rotation (roll)
+    
+    // BACK CAMERA orientation:
+    // The back camera points in the +Y direction in device coordinates
+    // (out the back of the phone when held in portrait, screen facing you)
+    // When phone is held vertically (beta=90), back camera looks at horizon
+    // 
+    // Device coordinate system:
+    // X = right edge of screen
+    // Y = top edge of screen (where back camera is)
+    // Z = out of screen toward user
+    //
+    // Back camera looks in +Y direction (toward top of phone / out the back)
+    // Initial camera direction in device frame: [0, 1, 0]
+    
+    const cA = Math.cos(a), sA = Math.sin(a);
+    const cB = Math.cos(b), sB = Math.sin(b);
+    const cG = Math.cos(g), sG = Math.sin(g);
+    
+    // ZXY rotation matrix (from W3C spec)
+    // R = [[cA*cG - sA*sB*sG, -cB*sA, cG*sA*sB + cA*sG],
+    //      [cG*sA + cA*sB*sG,  cA*cB, sA*sG - cA*cG*sB],
+    //      [-cB*sG,            sB,    cB*cG           ]]
+    
+    // Camera direction in device coords: v = [0, 1, 0] (back camera points out top/back)
+    // World direction: R * v = [R[0][1], R[1][1], R[2][1]]
+    
+    // Calculate second column of rotation matrix
+    const r01 = -cB * sA;
+    const r11 = cA * cB;
+    const r21 = sB;
+    
+    // World direction the back camera is pointing
+    const worldX = r01;  // East component
+    const worldY = r11;  // North component  
+    const worldZ = r21;  // Up component
+    
+    return { x: worldX, y: worldY, z: worldZ };
+  }, [orientation.alpha, orientation.beta, orientation.gamma, initialAlpha]);
+  
+  const currentAzimuth = useCallback(() => {
+    const dir = getCameraDirection();
+    // Azimuth: angle in the horizontal plane from North (Y-axis) going clockwise (toward East/X-axis)
+    // atan2(x, y) gives angle from Y-axis toward X-axis
+    let azimuth = Math.atan2(dir.x, dir.y) * (180 / Math.PI);
+    // Normalize to 0-360
+    azimuth = (azimuth + 360) % 360;
     return azimuth;
-  }, [orientation.alpha, initialAlpha]);
+  }, [getCameraDirection]);
   
   const currentElevation = useCallback(() => {
-    // Beta behavior (when holding phone in portrait, screen facing you):
-    // - beta = 90: phone vertical, camera pointing at horizon → elevation = 0
-    // - beta = 0: phone flat face up, camera pointing at ceiling → elevation = +90
-    // - beta = 180: phone flat face down, camera pointing at floor → elevation = -90
-    // - beta < 90: phone tilted back → camera pointing UP → positive elevation
-    // - beta > 90: phone tilted forward → camera pointing DOWN → negative elevation
-    //
-    // Formula: elevation = 90 - beta
-    // But we need to handle the range properly
-    
-    const beta = orientation.beta;
-    
-    // For standard portrait usage, beta is typically 0 to 180
-    // elevation = 90 - beta gives us:
-    // beta=0 → 90 (ceiling), beta=90 → 0 (horizon), beta=180 → -90 (floor)
-    let elevation = 90 - beta;
-    
+    const dir = getCameraDirection();
+    // Elevation: angle from horizontal plane
+    // Positive = looking up, negative = looking down
+    const horizontalLength = Math.sqrt(dir.x * dir.x + dir.y * dir.y);
+    let elevation = Math.atan2(dir.z, horizontalLength) * (180 / Math.PI);
     // Clamp to valid range
     elevation = Math.max(-90, Math.min(90, elevation));
     return elevation;
-  }, [orientation.beta]);
+  }, [getCameraDirection]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -685,10 +723,10 @@ export default function HDRIGenerationPage() {
                     <img 
                       src={img.previewUrl} 
                       alt="" 
-                      className="w-24 h-16 sm:w-32 sm:h-20 object-cover rounded-lg border-2 border-green-400 shadow-lg"
+                      className="w-32 h-24 sm:w-40 sm:h-28 object-cover rounded-lg border-3 border-green-400 shadow-lg"
                     />
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="absolute -top-2 -right-2 w-7 h-7 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                      <Check className="w-4 h-4 text-white" />
                     </div>
                   </div>
                 </div>
@@ -733,7 +771,7 @@ export default function HDRIGenerationPage() {
               
               const screenX = 50 + pos.x * 40;
               const screenY = 50 + pos.y * 40;
-              const size = isCurrentTarget ? 80 : 50;
+              const size = isCurrentTarget ? 100 : 70;
               
               return (
                 <div
@@ -864,6 +902,10 @@ export default function HDRIGenerationPage() {
                   {elevation > 30 ? '↑ UP' : elevation < -30 ? '↓ DOWN' : '→ LEVEL'}
                 </span>
               </div>
+              {/* Raw sensor debug info */}
+              <div className="text-white/40 text-[9px] mt-1 font-mono">
+                α:{Math.round(orientation.alpha)}° β:{Math.round(orientation.beta)}° γ:{Math.round(orientation.gamma)}°
+              </div>
               {/* Next target hint */}
               {nearTarget && (
                 <div className="mt-1 text-yellow-400 text-[10px] font-bold">
@@ -892,7 +934,7 @@ export default function HDRIGenerationPage() {
         {/* Thumbnail strip at bottom showing all captures */}
         {capturedImages.length > 0 && (
           <div className="absolute bottom-36 left-0 right-0 z-10">
-            <div className="flex gap-2 px-4 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-3 px-4 overflow-x-auto pb-2 scrollbar-hide">
               {capturedImages.map(img => (
                 <div 
                   key={img.id} 
@@ -901,7 +943,7 @@ export default function HDRIGenerationPage() {
                   <img 
                     src={img.previewUrl} 
                     alt="" 
-                    className="w-12 h-12 object-cover rounded-lg border-2 border-green-400"
+                    className="w-16 h-16 object-cover rounded-lg border-2 border-green-400"
                   />
                   <button
                     onClick={() => removeImage(img.id)}
