@@ -164,6 +164,14 @@ export default function HDRIGenerationPage() {
   const [generatedHDRI, setGeneratedHDRI] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pageUrl, setPageUrl] = useState('');
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
+  
+  // Debug logger that shows on screen
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugLogs(prev => [...prev.slice(-9), `[${timestamp}] ${message}`]);
+  };
   
   const [orientation, setOrientation] = useState<DeviceOrientation>({ alpha: 0, beta: 0, gamma: 0 });
   const [screenOrientation, setScreenOrientation] = useState(0);
@@ -486,12 +494,23 @@ export default function HDRIGenerationPage() {
         return;
       }
       
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Resize to max 1920px to reduce file size for upload
+      const maxSize = 1920;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+      
+      if (width > maxSize || height > maxSize) {
+        const scale = maxSize / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(video, 0, 0, width, height);
       
       const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92);
+        canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85);
       });
       
       if (!blob || blob.size === 0) {
@@ -499,6 +518,8 @@ export default function HDRIGenerationPage() {
         setIsCapturing(false);
         return;
       }
+      
+      addDebugLog(`Captured: ${name}, ${(blob.size / 1024).toFixed(0)}KB, ${width}x${height}`);
       
       const file = new File([blob], `hdri-${name}-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const previewUrl = URL.createObjectURL(blob);
@@ -573,26 +594,52 @@ export default function HDRIGenerationPage() {
     
     try {
       const formData = new FormData();
+      let totalSize = 0;
+      
       capturedImages.forEach((img) => {
         formData.append('images', img.file);
         formData.append('directions', `az${img.azimuth}_el${img.elevation}`);
+        totalSize += img.file.size;
       });
+      
+      const sizeMsg = `Uploading ${capturedImages.length} images, ${(totalSize / 1024 / 1024).toFixed(2)}MB`;
+      addDebugLog(sizeMsg);
       
       const response = await fetch('/api/admin/hdri/generate', {
         method: 'POST',
         body: formData,
       });
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate HDRI');
+      addDebugLog(`Response status: ${response.status}`);
+      
+      // Get response as text first to handle non-JSON responses
+      const responseText = await response.text();
+      addDebugLog(`Response length: ${responseText.length} chars`);
+      
+      // Try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        addDebugLog('JSON parsed successfully');
+      } catch (parseErr) {
+        // If not valid JSON, throw with the raw text
+        const preview = responseText.substring(0, 200);
+        addDebugLog(`JSON parse failed: ${preview}`);
+        throw new Error(`Server error: ${preview}`);
       }
       
-      const data = await response.json();
+      if (!response.ok) {
+        const errMsg = data.error || data.message || 'Failed to generate HDRI';
+        addDebugLog(`API error: ${errMsg}`);
+        throw new Error(errMsg);
+      }
+      
+      addDebugLog('HDRI generated successfully!');
       setGeneratedHDRI(data.hdriUrl);
     } catch (err) {
-      console.error('HDRI generation error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate HDRI');
+      const errMsg = err instanceof Error ? err.message : 'Failed to generate HDRI';
+      addDebugLog(`ERROR: ${errMsg}`);
+      setError(errMsg);
     } finally {
       setIsGenerating(false);
     }
@@ -888,7 +935,35 @@ export default function HDRIGenerationPage() {
           
           {error && (
             <div className="mt-3 p-3 bg-red-500/90 rounded-xl">
-              <p className="text-white text-sm">{error}</p>
+              <p className="text-white text-sm font-mono break-all">{error}</p>
+            </div>
+          )}
+          
+          {/* Debug toggle button */}
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className="mt-2 px-3 py-1 bg-purple-600/80 rounded-lg text-white text-xs"
+          >
+            {showDebug ? 'Hide Debug' : 'Show Debug'} ({debugLogs.length})
+          </button>
+          
+          {/* Debug logs panel */}
+          {showDebug && debugLogs.length > 0 && (
+            <div className="mt-2 p-3 bg-black/90 rounded-xl max-h-48 overflow-y-auto">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-purple-400 text-xs font-bold">Debug Logs</span>
+                <button 
+                  onClick={() => setDebugLogs([])}
+                  className="text-red-400 text-xs"
+                >
+                  Clear
+                </button>
+              </div>
+              {debugLogs.map((log, i) => (
+                <p key={i} className="text-green-400 text-[10px] font-mono break-all leading-tight">
+                  {log}
+                </p>
+              ))}
             </div>
           )}
         </div>
@@ -1111,7 +1186,38 @@ export default function HDRIGenerationPage() {
         {/* Error */}
         {error && !showCamera && (
           <div className="mt-6 p-4 bg-red-100 border-2 border-red-400 rounded-xl">
-            <p className="text-red-700">{error}</p>
+            <p className="text-red-700 font-mono text-sm break-all">{error}</p>
+          </div>
+        )}
+        
+        {/* Debug panel for mobile testing */}
+        {isMobile && (
+          <div className="mt-6">
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className="w-full py-2 bg-purple-600 text-white rounded-xl font-medium text-sm"
+            >
+              {showDebug ? 'Hide' : 'Show'} Debug Logs ({debugLogs.length})
+            </button>
+            
+            {showDebug && debugLogs.length > 0 && (
+              <div className="mt-2 p-4 bg-gray-900 rounded-xl max-h-64 overflow-y-auto">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-purple-400 text-sm font-bold">Debug Logs</span>
+                  <button 
+                    onClick={() => setDebugLogs([])}
+                    className="text-red-400 text-xs px-2 py-1 bg-red-900/30 rounded"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {debugLogs.map((log, i) => (
+                  <p key={i} className="text-green-400 text-xs font-mono break-all leading-relaxed mb-1">
+                    {log}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

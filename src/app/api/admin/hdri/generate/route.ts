@@ -3,6 +3,18 @@ import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { getStorage } from 'firebase-admin/storage';
 import { getApps } from 'firebase-admin/app';
 
+// Increase body size limit for image uploads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+  },
+};
+
+// For Next.js App Router, we use this instead
+export const maxDuration = 60; // 60 seconds timeout
+
 const ADMIN_EMAIL = 'imranjeferly@gmail.com';
 
 // Verify admin access
@@ -34,9 +46,21 @@ export async function POST(request: NextRequest) {
     // Note: For testing purposes, we're not enforcing admin check on this endpoint
     // In production, you should enable admin verification
     
-    const formData = await request.formData();
+    let formData;
+    try {
+      formData = await request.formData();
+    } catch (formError) {
+      console.error('FormData parsing error:', formError);
+      return NextResponse.json(
+        { error: 'Failed to parse form data. Images may be too large.' },
+        { status: 400 }
+      );
+    }
+    
     const images = formData.getAll('images') as File[];
     const directions = formData.getAll('directions') as string[];
+    
+    console.log('Received images:', images.length, 'directions:', directions.length);
     
     if (images.length < 4) {
       return NextResponse.json(
